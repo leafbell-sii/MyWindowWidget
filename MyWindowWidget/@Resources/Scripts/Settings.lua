@@ -13,7 +13,7 @@
 --         SetWeekStart('Mon'|'Sun')
 -- =============================================================
 
-local MAX_THEMES = 4
+local MAX_THEMES = 8   -- two rows of four swatches in Settings.ini
 local ALPHAS = { 178, 217, 255 }   -- 70% / 85% / 100%
 
 local themes = {}

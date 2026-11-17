@@ -95,7 +95,8 @@ Spotify 외에 Windows 미디어 정보를 제공하는 다른 플레이어도 �
 
 **Settings** 위젯을 켜면 아래 항목을 클릭으로 바꿀 수 있고, 모든 MyWindowWidget 위젯에 바로 반영됩니다.
 
-- **Theme**: Brown / Slate / Forest / Mono
+- **Theme**: Brown / Slate / Forest / Mono / Christmas / Cafe
+  - **Christmas**, **Cafe**는 색뿐 아니라 폰트와 카드 배경 그림까지 바꾸는 컨셉 테마입니다(아래 "컨셉 테마").
 - **Opacity**: 카드 불투명도 70% / 85% / 100%
 - **24-hour clock**: 24시간제 켜기·끄기
 - **Show seconds**: 초 표시 켜기·끄기
@@ -139,8 +140,33 @@ ColorCal1=214,154,96,255
 1. `Brown.inc`를 복사해 `Themes\MyTheme.inc`처럼 저장하고 색을 바꿉니다.
 2. `Variables.inc`의 `ThemeList`에 이름을 추가합니다.
    - 예: `ThemeList=Brown|Slate|Forest|MyTheme`
-   - Settings에는 최대 4개까지 표시됩니다.
+   - Settings에는 최대 8개(4개씩 2줄)까지 표시됩니다.
 3. Settings 위젯에서 고르거나, `Theme=MyTheme`으로 직접 바꿉니다.
+
+### 컨셉 테마 (폰트 + 카드 배경)
+
+테마 파일은 색 외에 폰트와 카드 그림도 정할 수 있습니다. 정하지 않은 값은 `Variables.inc`의 "Theme defaults"(Segoe UI, 그림 없음)를 씁니다.
+
+| 테마 | 숫자·시계 폰트 | 본문 폰트 | 카드 배경 |
+|---|---|---|---|
+| Christmas | Emilys Candy | Jua (한글 지원) | 짙은 초록 + 은은한 눈송이, 위쪽에 꼬마전구 줄 |
+| Cafe | Gaegu Bold | Gaegu (한글 지원, 손글씨) | 라떼색 종이 결 + 커피잔 자국·원두, 위쪽에 줄무늬 차양 |
+
+```ini
+; 폰트: @Resources\Fonts 안의 .ttf/.otf는 자동으로 로드됩니다. 파일 이름이 아닌 글꼴 이름을 씁니다.
+FontFace=Jua
+FontFaceNum=Emilys Candy
+; 글자가 작게 그려지는 폰트면 전체 글자 크기 배율
+FontScale=1
+; 카드 그림: 카드 전체에 타일로 까는 반투명 텍스처 + 위쪽 가장자리 장식 띠
+CardTexture=#@#Images\Christmas\Texture.png
+CardTrim=#@#Images\Christmas\Trim.png
+CardTrimH=16
+```
+
+- 그림은 카드의 둥근 모서리 안쪽으로 잘려 그려지고, **Opacity** 설정을 따라 함께 투명해집니다.
+- 그림은 `tools/dev/make-concept-art.py`로 생성했습니다(Pillow 필요). 색이나 무늬를 바꾸려면 스크립트를 고쳐 다시 실행하세요.
+- 폰트를 바꾸면 시계의 초·AM/PM 위치가 어긋날 수 있습니다. `tools/dev/font-metrics.py <폰트파일>`이 출력하는 `FontCapTop`, `FontAscent` 등의 값을 테마 파일에 넣으면 맞춰집니다.
 
 ---
 
@@ -185,9 +211,10 @@ Rainmeter 4.5는 DPI를 인식하지 못하는 앱이라, Windows 배율이 125%
 
 ```
 MyWindowWidget/            스킨 폴더 (이 README 포함)
-  @Resources/     Variables.inc, Styles.inc, Themes/, Scripts/, Secrets*.inc
+  @Resources/     Variables.inc, Styles.inc, CardArt.inc, Themes/, Scripts/, Secrets*.inc
+                  Fonts/ (번들 폰트 + 라이선스), Images/ (컨셉 테마 카드 그림)
 vendor/           WebNowPlaying DLL(32/64bit) + LICENSE + 출처/해시
-tools/            build-rmskin.ps1
+tools/            build-rmskin.ps1, dev/ (로그·스크린샷·폰트 메트릭·카드 그림 생성)
 ```
 
 - **개발 중 실시간 반영**: 스킨 폴더에 저장소를 junction으로 연결하면, 파일을 고치고 새로고침만 하면 됩니다.
@@ -211,4 +238,5 @@ tools/            build-rmskin.ps1
 ## 크레딧
 
 - [WebNowPlaying-Rainmeter](https://github.com/keifufu/WebNowPlaying-Rainmeter) © keifufu — MIT License. 전문은 패키지에 포함된 `@Resources\Licenses\WebNowPlaying.txt`에 있습니다.
+- 폰트: [Jua](https://fonts.google.com/specimen/Jua), [Gaegu](https://fonts.google.com/specimen/Gaegu), [Emilys Candy](https://fonts.google.com/specimen/Emilys+Candy) — SIL Open Font License 1.1. 전문은 `@Resources\Fonts\*-OFL.txt`에 있습니다.
 - MyWindowWidget: MIT License © 2026 leafbell-sii. 저장소 루트의 `LICENSE`, 패키지에서는 `@Resources\Licenses\MyWindowWidget.txt`에 있습니다.

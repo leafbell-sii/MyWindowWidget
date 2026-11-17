@@ -25,19 +25,28 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
   @Resources/
     Variables.inc            공용 설정. Theme/BgAlpha/Use24h 등. Settings 스킨이 여기에 씀
     Styles.inc               공용 MeterStyle (StyleCard, StyleTitle, StyleValue ...)
-    Themes/*.inc             색 테마 (ColorBgRGB + 나머지 R,G,B,A). ThemeList에 등록
+    Themes/*.inc             테마 (ColorBgRGB + 나머지 R,G,B,A). ThemeList에 등록
+                             Christmas/Cafe는 폰트·카드 그림까지 정하는 컨셉 테마
+    CardArt.inc              카드 그림 미터 (각 스킨 [MeterBg]에서 @Include)
+    Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy) + *-OFL.txt
+    Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
     Cache/                   런타임 캐시 (calN.ics, NetToday.txt) - git 제외
     Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings
   Clock/ System/ Network/ Music/ Calendar/ Settings/   스킨 (.ini 하나씩)
 vendor/WebNowPlaying/        플러그인 DLL 32/64bit (v3.0.0-alpha.5, sha256은 SOURCE.md)
 tools/build-rmskin.ps1       dist/MyWindowWidget_<버전>.rmskin 생성
-tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1
+tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
+                             font-metrics.py, make-concept-art.py (Pillow/fontTools 필요)
 ```
 
 - 모든 스킨은 `Group=MyWindowWidget`입니다. Settings는 값을 바꾼 뒤 `!RefreshGroup MyWindowWidget`으로 전체를 새로고침합니다.
 - 카드 배경은 각 스킨의 `[Variables]`에 `CardW` / `CardH`를 정하고 `MeterStyle=StyleCard`를 씁니다.
   - `CardH`는 보통 `([마지막미터:YH]+#Pad#)` 형태입니다.
+  - `[MeterBg]`에 `@IncludeCardArt=#@#CardArt.inc`가 있어 테마 그림(텍스처, 위쪽 장식 띠)이 카드 색 위에 그려집니다. 새 스킨도 똑같이 넣습니다.
+- **테마가 덮어쓰는 값**(폰트, `FontScale`, 폰트 메트릭, `CardTexture`/`CardTrim`)의 기본값은 `Variables.inc`에서 `@IncludeTheme` **앞**에 둡니다. 뒤에 두면 기본값이 테마 값을 이깁니다.
+- **글자 위치 맞춤은 폰트 메트릭 변수로** 합니다(`FontCapTop`, `FontAscent`, `FontCapTopNum`, `FontAscentNum`, `FontDescentNum`). Segoe UI 전용 상수(1.44, 0.30 등)를 새로 쓰지 않습니다. 값은 `tools/dev/font-metrics.py`로 구합니다.
+  - 글자 폭에 맞춘 고정 칸(`WhenW`, `RamDetailW`, `UnitW`)은 `*#FontScale#`을 곱합니다.
 
 ## 개발 루프 (이 PC 기준)
 
@@ -95,6 +104,12 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1
   - `UpdateRate`는 업데이트 횟수입니다. `Update=1000` × `900` = 15분입니다.
   - 연결 실패 시 로그에는 원인만 남고 URL은 남지 않습니다.
   - 구글 비공개 주소의 `%40`은 그대로 전달돼 정상 동작합니다.
+- **Container**: 컨테이너 미터 자체는 그려지지 않고 마스크로만 쓰입니다. 첫 내용 미터는 컨테이너 왼쪽 위 기준이고, 내용 미터는 창 크기(DynamicWindowSize)를 늘리지 않습니다(2026-11-17 확인).
+- **Image 미터에 `DynamicVariables=1`을 주면 매 업데이트마다 디스크에서 이미지를 다시 읽습니다.** 그래서 `CardArt.inc`의 텍스처는 `H=(2*#CardW#)` 고정값을 쓰고 컨테이너가 자릅니다.
+- **`ImageName=`이 비어 있으면** 아무것도 그리지 않고 로그도 남지 않습니다(그림 없는 테마).
+- **번들 폰트**: `@Resources\Fonts`의 .ttf/.otf는 자동 로드됩니다. 웨이트가 하나뿐인 폰트에 `FontWeight=600/700`을 주면 가짜 볼드가 됩니다 → 테마에서 `FontWeightNum`/`FontWeightTitle`을 400으로.
+  - Google Fonts에서 정적 TTF는 `css2?family=...` API를 구형 User-Agent(`Mozilla/4.0`)로 요청하면 받을 수 있습니다(저장소의 기본 파일은 가변 폰트).
+- **`!WriteKeyValue`는 스킨 폴더 밖 경로를 거부합니다**(`Illegal path`). 저장소 경로 대신 `문서\Rainmeter\Skins\MyWindowWidget\...`(junction) 경로를 씁니다.
 - **`@Vault`는 플러그인 설치 경로가 아닙니다.** 설치기가 사본을 보관하는 폴더이고, 실제 설치는 패키지의 `Plugins/32bit|64bit`에서 이뤄집니다.
 
 ## 내린 결정
@@ -103,6 +118,8 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1
 - **WebNowPlaying은 v3**를 씁니다. v2.0.7은 Windows 11 업데이트 이후 동작하지 않는다는 제작자 안내가 있습니다.
   - 옵션 이름은 v2와 v3 공통인 legacy 이름을 씁니다.
   - 데스크톱 Spotify를 별도 설정 없이 인식합니다.
+- **컨셉 테마 폰트**: 한글 일정 제목이 많아 본문 폰트는 한글 지원 폰트로 골랐습니다(Christmas: Jua, Cafe: Gaegu). Christmas 숫자 폰트는 처음 Mountains of Christmas였으나 0이 작게 떠서("150"이 "15°"처럼 보임) Emilys Candy로 바꿨습니다.
+  - Gaegu는 작게 그려지지만 폭이 넓어 `FontScale=1.15`가 고정 폭 카드에 들어가는 한계입니다.
 - **곡 제목**은 marquee 대신 말줄임(…)으로 처리합니다(CPU 목표).
 - **진행 바**는 클릭으로만 탐색합니다. Rainmeter에 마우스 이동 이벤트가 없습니다.
 - **네트워크 "Today"**는 `Cumulative=1` 대신 Lua로 직접 합산합니다. 어댑터가 바뀌어도 값이 튀지 않습니다.
@@ -116,4 +133,4 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1
 - **Calendar 미지원 반복 규칙**: `MONTHLY`/`YEARLY` + `BYDAY`("둘째 화요일"), `BYMONTHDAY`, `RDATE`는 첫 회차만 표시합니다.
 - **Calendar 시간대**: Asia/Seoul이 아닌 TZID는 로컬 시간으로 취급합니다(VTIMEZONE 미해석).
 - 명세의 선택 범위 밖이었던 것: Disk, Weather, GPU/온도, Clock 보조 타임존.
-- 번들 폰트 미정: `Variables.inc`의 `FontFace`에 TODO가 있습니다.
+- 기본 테마(Brown/Slate/Forest/Mono)는 여전히 시스템 폰트 Segoe UI를 씁니다.
