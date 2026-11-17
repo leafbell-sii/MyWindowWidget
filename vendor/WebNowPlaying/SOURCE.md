@@ -1,6 +1,6 @@
 # WebNowPlaying (vendored)
 
-Rainmeter plugin used by the Umber Music skin, bundled into the .rmskin.
+Rainmeter plugin used by the MyWindowWidget Music skin, bundled into the .rmskin.
 
 - Project: https://github.com/keifufu/WebNowPlaying-Rainmeter (MIT, see LICENSE)
 - Release: v3.0.0-alpha.5 (pre-release; the project recommends v3 for
