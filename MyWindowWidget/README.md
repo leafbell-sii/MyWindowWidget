@@ -117,7 +117,9 @@ Spotify 외에 Windows 미디어 정보를 제공하는 다른 플레이어도 �
 | `ICalRefreshSeconds` | `900` | 캘린더 갱신 간격(초) |
 | `Theme` | `Brown` | 테마 파일 이름(`Themes\` 안) |
 | `BgAlpha` | `217` | 카드 불투명도 0~255 (178 = 70%, 217 = 85%, 255 = 100%) |
-| `Scale` | `1` | 전체 크기 배율(예: `1.15`). Windows 배율(125% 등)은 Rainmeter가 이미 반영하므로 보통은 그대로 두세요. |
+| `SuiteScale` | `1` | 전체 크기 배율(예: `1.15`). Windows 배율(125% 등)은 Rainmeter가 이미 반영하므로 보통은 그대로 두세요. |
+| `CalendarScale` | `1.5` | Calendar만 다른 위젯보다 몇 배 크게 그릴지 |
+| `CompactWidth` / `CompactHeight` | `300` / `138` | System·Network 카드 크기(4장을 쌓으면 Calendar 높이와 비슷) |
 
 ### 테마 색 바꾸기
 

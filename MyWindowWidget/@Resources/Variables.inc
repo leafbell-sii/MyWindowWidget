@@ -27,7 +27,16 @@ ColorOnAccent=#ColorBgRGB#,255
 ; Rainmeter 4.5+ already follows Windows display scaling
 ; (125% / 150%), so keep 1 unless you just want the suite
 ; larger or smaller (e.g. 1.15 or 0.9).
-Scale=1
+SuiteScale=1
+; Calendar card size relative to the rest of the suite.
+CalendarScale=1.5
+; Per-skin multiplier. Leave 1 here: a skin that is drawn
+; larger overrides it in its own [Variables] (the Calendar sets
+; SkinScale=#CalendarScale#). Must come before Scale.
+SkinScale=1
+; Effective multiplier used by every size below and by the
+; skins' own (N*#Scale#) sizes.
+Scale=(#SuiteScale#*#SkinScale#)
 
 ; ---- Typography ---------------------------------------------
 ; TODO: switch to a bundled font (Inter / Manrope) placed in
@@ -45,6 +54,10 @@ Radius=(12*#Scale#)
 Pad=(14*#Scale#)
 Gap=(8*#Scale#)
 WidgetWidth=(260*#Scale#)
+; Short cards (System, Network): four of them plus three Gaps
+; are about as tall as the Calendar (CalendarScale 1.5).
+CompactWidth=(300*#Scale#)
+CompactHeight=(138*#Scale#)
 ; Thin bars (RAM bar, separators)
 BarH=(4*#Scale#)
 ; Shape-drawn icons
