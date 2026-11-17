@@ -108,6 +108,8 @@ IconStrokeW=(1.5*#Scale#)
 PlayButtonSize=(30*#Scale#)
 ; Calendar card
 CalendarWidth=(280*#Scale#)
+; Tasks cards (Tasks\List1..4)
+TasksWidth=(280*#Scale#)
 
 ; ---- Behaviour ----------------------------------------------
 ; Values at or above this percent turn ColorWarn (System skin).
@@ -126,6 +128,14 @@ LocalTZID=Asia/Seoul
 ; Calendar: how often to re-download the iCal feeds, in seconds
 ; (Google's feed itself can lag minutes to hours).
 ICalRefreshSeconds=900
+; Tasks: task rows per card (1-10; more tasks show "+N more")
+TasksRows=8
+; Tasks: how often to re-read Google Tasks, in seconds (min 60).
+; Adding / completing / clicking the list name syncs at once.
+TasksRefreshSeconds=300
+; Tasks: font of the "Add task" text box. The box can only use
+; fonts installed in Windows, not the bundled @Resources\Fonts.
+InputFontFace=Segoe UI
 
 ; ---- Internal (used by the shared styles) -------------------
 BgFill=#ColorBg#

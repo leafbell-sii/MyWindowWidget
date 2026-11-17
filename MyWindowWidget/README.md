@@ -9,6 +9,7 @@
 | **Network** | 다운로드/업로드 속도(단위 자동), 그래프, 오늘 누적 전송량 |
 | **Music** | Spotify 지금 재생 중: 앨범 아트, 제목/아티스트, 진행 바, 재생 컨트롤 |
 | **Calendar** | 구글 캘린더 월 달력 + 다가오는 일정 5개 |
+| **Tasks** | 구글 할 일(Google Tasks) 목록. 위젯에서 바로 추가·완료. 목록마다 카드 하나(최대 4개) |
 | **Settings** | 테마·불투명도·시계 형식·주 시작 요일을 클릭으로 바꾸는 설정 카드 |
 
 모든 위젯은 따로 켜고 끄고 옮길 수 있습니다.
@@ -86,6 +87,63 @@ ICalUrl4=
 - 카드 위 마우스 휠로 볼륨 조절을 시도하지만, 대부분의 데스크톱 플레이어(Spotify 포함)는 이 기능을 지원하지 않습니다.
 
 Spotify 외에 Windows 미디어 정보를 제공하는 다른 플레이어도 표시될 수 있습니다.
+
+---
+
+## 구글 할 일 연결 (Tasks)
+
+Tasks 카드는 Google Tasks의 할 일 목록을 보여주고, 카드에서 바로 **추가**하고 **완료**할 수 있습니다.
+카드는 `Tasks\List1` ~ `Tasks\List4` 네 개이고, 각각 따로 켜서 목록마다 하나씩 띄울 수 있습니다.
+
+> **API 키로는 연결할 수 없습니다.** Google Tasks API는 개인 데이터라 OAuth 2.0 로그인만 받습니다.
+> 그래서 아래처럼 **처음 한 번만** 내 구글 계정으로 로그인하는 과정이 필요합니다. 이 과정은 직접 해야 합니다.
+
+### 1. Google Cloud에서 OAuth 클라이언트 만들기 (한 번만)
+
+1. [Google Cloud Console](https://console.cloud.google.com/)에 로그인하고, 위쪽 프로젝트 선택 → **새 프로젝트**(이름 예: `MyWindowWidget`).
+2. **API 및 서비스 → 라이브러리**에서 **Google Tasks API**를 찾아 **사용**을 누릅니다.
+3. **Google Auth Platform**(이전 이름: OAuth 동의 화면)에서 앱 정보를 만듭니다.
+   - 사용자 유형: **외부(External)**, 앱 이름·이메일은 아무렇게나(나만 씀).
+   - **대상(Audience)**에서 **앱 게시(Publish app)** 를 눌러 상태를 **프로덕션(In production)** 으로 바꿉니다.
+     - "테스트(Testing)" 상태로 두면 **7일마다 로그인이 만료**됩니다(구글 정책).
+     - 검수(verification)는 받지 않아도 됩니다. 로그인할 때 "확인되지 않은 앱" 경고가 한 번 뜰 뿐입니다.
+4. **클라이언트(Clients) → 클라이언트 만들기** → 애플리케이션 유형 **데스크톱 앱(Desktop app)** → 만들기.
+5. 만든 클라이언트의 **JSON 다운로드**를 누릅니다(`client_secret_....json`).
+
+### 2. 로그인 (한 번만)
+
+PowerShell 창을 열고 아래를 실행합니다(JSON 경로는 받은 파일로 바꿔 주세요).
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\Rainmeter\Skins\MyWindowWidget\@Resources\Scripts\GTasks.ps1" -Action setup -ClientSecretFile "$env:USERPROFILE\Downloads\client_secret_XXXX.json"
+```
+
+1. 브라우저에 구글 로그인 창이 뜨면 할 일을 쓰는 계정으로 로그인합니다.
+2. "Google에서 확인하지 않은 앱" 화면이 나오면 **고급 → (앱 이름)(으)로 이동** → **계속**을 누릅니다. 내가 만든 앱이라 괜찮습니다.
+3. 권한 요청(할 일 보기·수정)을 **허용**하면, 콘솔에 `Connected.`와 내 목록 이름이 표시됩니다.
+4. 이제 **다운로드한 JSON 파일은 지워도 됩니다.**
+
+로그인 정보(클라이언트 ID·비밀, refresh token)는 **Windows DPAPI로 암호화**해서 `%LOCALAPPDATA%\MyWindowWidget\GoogleTasks\`에 저장합니다.
+현재 Windows 사용자만 풀 수 있고, 스킨 폴더·패키지·git에는 들어가지 않습니다.
+
+**연결 해제**: 아래를 실행하면 구글에서 권한을 취소하고 저장된 정보와 캐시를 지웁니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\Rainmeter\Skins\MyWindowWidget\@Resources\Scripts\GTasks.ps1" -Action signout
+```
+
+### 사용법
+
+- 카드 켜기: Rainmeter 관리 창 → `MyWindowWidget\Tasks\List1`(~`List4`) → `Tasks.ini` → **Load**
+  - `List1`은 내 첫 번째 목록, `List2`는 두 번째 목록을 보여줍니다.
+- **‹ ›**: 이 카드에 다른 목록 표시(카드마다 기억)
+- **목록 이름** 클릭: 지금 동기화
+- **○** 클릭: 완료 처리(마우스를 올리면 체크 표시)
+- **+ Add task**: 입력창에 제목을 쓰고 **Enter**(취소는 Esc 또는 바깥 클릭). 새 할 일은 목록 맨 위에 추가됩니다.
+- 하위 할 일은 들여써서 표시합니다. 마감일은 오른쪽에 `Today`, `Tomorrow`, `Nov 20`처럼 표시되고, 지난 날짜는 경고색입니다.
+- 5분마다 다시 받아옵니다(`Variables.inc`의 `TasksRefreshSeconds`). 표시 줄 수는 `TasksRows`(최대 10)이고, 넘치면 `+N more`가 표시됩니다.
+- 인터넷이 끊기면 마지막 목록을 그대로 보여주고 아래쪽에 `Offline`이 표시됩니다.
+- 카드에 "Sign-in expired"가 뜨면 위의 **2. 로그인**을 다시 실행하세요(동의 화면이 "테스트" 상태였거나, 구글 계정에서 권한을 취소한 경우).
 
 ---
 
@@ -179,6 +237,8 @@ CardTrimH=16
 - **시간대**: 일정은 한국 시간(Asia/Seoul) 기준으로 표시합니다. 다른 시간대를 지정해 만든 일정은 시간이 어긋날 수 있습니다(UTC 일정은 정상 변환됨).
 - **음악 탐색**: 진행 바는 클릭으로만 이동하고, 드래그는 안 됩니다(Rainmeter에 마우스 이동 이벤트가 없음).
 - **긴 제목**: 길면 `…`으로 잘립니다(스크롤 없음).
+- **할 일(Tasks)**: 추가와 완료만 됩니다. 제목·마감일 수정, 삭제, 메모 보기, 완료 취소는 구글 앱에서 하세요. 완료한 할 일은 표시하지 않습니다.
+- **Tasks 카드 수**: Rainmeter는 설정(config) 하나에 창 하나라서 카드는 미리 만든 4개(`List1`~`List4`)까지입니다.
 
 ### 화면 배율이 100%가 아닐 때 (위젯이 흐릿함)
 

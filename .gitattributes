@@ -2,3 +2,4 @@
 # makes Rainmeter run it in Unicode mode (see the file header).
 # Git stores it as UTF-8 so diffs stay readable.
 MyWindowWidget/@Resources/Scripts/Calendar.lua text working-tree-encoding=UTF-16LE-BOM eol=lf
+MyWindowWidget/@Resources/Scripts/Tasks.lua text working-tree-encoding=UTF-16LE-BOM eol=lf

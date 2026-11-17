@@ -31,9 +31,12 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
     Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy) + *-OFL.txt
     Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
-    Cache/                   런타임 캐시 (calN.ics, NetToday.txt) - git 제외
-    Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings
+    Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasksN.*) - git 제외
+    Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings, Tasks
+                             GTasks.ps1 (Google Tasks OAuth/API, RunCommand로 실행)
+    TasksSkin.inc            Tasks 카드 본체 (Tasks\ListN\Tasks.ini가 TasksSlot=N 뒤에 include)
   Clock/ System/ Network/ Music/ Calendar/ Settings/   스킨 (.ini 하나씩)
+  Tasks/List1..4/Tasks.ini   Google Tasks 슬롯 (목록마다 카드 하나)
 vendor/WebNowPlaying/        플러그인 DLL 32/64bit (v3.0.0-alpha.5, sha256은 SOURCE.md)
 tools/build-rmskin.ps1       dist/MyWindowWidget_<버전>.rmskin 생성
 tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
@@ -95,7 +98,8 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **Lua 인코딩**: 기본은 ANSI(CP949)라서 이모지나 일부 문자가 깨집니다.
   - 스크립트 파일이 **UTF-16 LE(BOM)**이면 유니코드(UTF-8) 모드로 실행됩니다.
   - 4.5.28은 UTF-8 BOM을 인식하지 못합니다(`unexpected symbol` 오류).
-  - 그래서 `Calendar.lua`만 UTF-16입니다. git에는 `.gitattributes`의 working-tree-encoding으로 UTF-8로 저장됩니다.
+  - 그래서 `Calendar.lua`와 `Tasks.lua`만 UTF-16입니다.
+  - Rainmeter의 Lua는 5.1이라 `\u{2026}` 같은 이스케이프가 없습니다. UTF-16 스크립트에 문자를 그대로 씁니다. git에는 `.gitattributes`의 working-tree-encoding으로 UTF-8로 저장됩니다.
   - `dofile`로 불러오는 파일(ICalParser)은 ASCII로 유지합니다.
 - **Lua에서 미터/measure를 다룰 때**: `Initialize()`에서는 아직 없는 섹션이 있을 수 있습니다. 첫 `Update()`에서 그리기와 활성화를 합니다.
 - **`SKIN:Bang` 인수는 `tostring`으로 넘깁니다.** 크기 변수는 `SKIN:ParseFormula(SKIN:ReplaceVariables('#Var#'))`로 숫자로 바꿉니다.
@@ -110,6 +114,12 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **번들 폰트**: `@Resources\Fonts`의 .ttf/.otf는 자동 로드됩니다. 웨이트가 하나뿐인 폰트에 `FontWeight=600/700`을 주면 가짜 볼드가 됩니다 → 테마에서 `FontWeightNum`/`FontWeightTitle`을 400으로.
   - Google Fonts에서 정적 TTF는 `css2?family=...` API를 구형 User-Agent(`Mozilla/4.0`)로 요청하면 받을 수 있습니다(저장소의 기본 파일은 가변 폰트).
 - **`!WriteKeyValue`는 스킨 폴더 밖 경로를 거부합니다**(`Illegal path`). 저장소 경로 대신 `문서\Rainmeter\Skins\MyWindowWidget\...`(junction) 경로를 씁니다.
+- **@Include한 파일에서 첫 섹션 앞에 둔 키는 include한 쪽 섹션에 합쳐지지 않습니다**(2026-11-17 확인). include 파일에서 변수를 정의하려면 그 파일에도 `[Variables]` 헤더를 씁니다.
+- **RunCommand**: Lua에서 `!SetOption MeasureRun Parameter ...` → `!UpdateMeasure` → `!CommandMeasure ... Run` 순서로 하면 새 Parameter로 실행됩니다(2026-11-17 확인).
+  - 실행 중에 다시 Run하면 오류 101이 납니다. 그래서 Tasks.lua는 큐를 두고 한 번에 하나만 실행합니다.
+- **InputText 입력을 Lua로 넘기기**: `[!CommandMeasure M """Add([==[$UserInput$]==])"""]`
+  - 한글, `"`, `\`가 그대로 도착합니다(bang으로 같은 문자열을 넣어 2026-11-17 확인).
+  - InputText는 Windows에 설치된 폰트만 쓸 수 있습니다(`InputFontFace`).
 - **`@Vault`는 플러그인 설치 경로가 아닙니다.** 설치기가 사본을 보관하는 폴더이고, 실제 설치는 패키지의 `Plugins/32bit|64bit`에서 이뤄집니다.
 
 ## 내린 결정
@@ -124,11 +134,21 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **진행 바**는 클릭으로만 탐색합니다. Rainmeter에 마우스 이동 이벤트가 없습니다.
 - **네트워크 "Today"**는 `Cumulative=1` 대신 Lua로 직접 합산합니다. 어댑터가 바뀌어도 값이 튀지 않습니다.
 - **패키지**: `LoadType=Skin`(Clock만 자동 로드)입니다. `VariableFiles=Secrets.inc | Variables.inc`라 재설치해도 사용자 값이 유지됩니다.
+- **Google Tasks는 API 키가 아니라 OAuth 2.0을 씁니다.** Tasks API가 OAuth 스코프만 받기 때문에, 사용자가 OAuth 데스크톱 방식으로 결정했습니다(2026-11-17).
+  - `GTasks.ps1 -Action setup`: loopback(127.0.0.1, TcpListener라 관리자 권한 불필요) + PKCE.
+  - 클라이언트 ID·비밀·refresh token은 DPAPI(CurrentUser)로 암호화해 `%LOCALAPPDATA%\MyWindowWidget\GoogleTasks`에 둡니다(저장소·패키지 밖).
+  - 동의 화면이 Testing 상태면 refresh token이 7일 뒤 만료됩니다. README에서 In production 전환을 안내합니다.
+  - HTTP는 내장 RunCommand 플러그인 + Windows PowerShell 5.1로 합니다(WebParser는 POST/PATCH 불가). 추가 입력은 내장 InputText입니다.
+  - 결과는 `Cache\tasksN.txt`(형식은 GTasks.ps1 머리말), 고른 목록은 `tasksN.sel`, 추가할 제목은 `tasksN.new`입니다. 명령줄에는 검증한 id만 넣고, 제목은 파일로 넘깁니다.
+  - 카드는 config 4개(`List1..4`)로 고정입니다. 추가·완료만 지원합니다(수정·삭제·완료 취소 없음).
 - **라이선스**: MIT (© 2026 leafbell-sii). WebNowPlaying(MIT) 고지는 패키지에 함께 넣습니다.
 
 ## 남은 일 / 아이디어
 
 - `.rmskin` **실제 설치 테스트**: 다른 PC, 또는 junction을 해제한 상태에서 해야 합니다.
+- **Tasks 미검증 항목**: 입력창(InputText)이 열린 모양과 위치(DPI 재정의 환경)는 아직 확인하지 못했습니다.
+  - 실제 계정으로 확인한 것(2026-11-17): setup, 조회(목록 2개), bang 경로로 한글·따옴표 제목 추가 → 완료, 목록 전환. 로그 오류 없음.
+  - 키 입력을 흉내 내는 테스트(SendKeys)는 쓰지 않습니다. 포커스가 다른 창에 있으면 사용자 창에 입력됩니다.
 - **Music 미검증 항목**: 재생 중일 때 일시정지 아이콘 전환과 진행 바 클릭 탐색은 아직 확인하지 못했습니다(일시정지 상태 표시는 확인함).
 - **Calendar 미지원 반복 규칙**: `MONTHLY`/`YEARLY` + `BYDAY`("둘째 화요일"), `BYMONTHDAY`, `RDATE`는 첫 회차만 표시합니다.
 - **Calendar 시간대**: Asia/Seoul이 아닌 TZID는 로컬 시간으로 취급합니다(VTIMEZONE 미해석).
