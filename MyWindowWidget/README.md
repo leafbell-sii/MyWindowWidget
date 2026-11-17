@@ -4,13 +4,12 @@
 
 | 위젯 | 내용 |
 |---|---|
-| **Clock** | 큰 `HH:mm` 시계, 초, 영어 날짜 (`Tuesday, November 17`) |
-| **System** | CPU 사용률 + 최근 60초 그래프, RAM 사용량(GB·%) + 바. 80% 이상이면 경고색 |
+| **Clock** | 큰 `HH:mm` 시계와 초, 옆에 현재 위치의 날씨(아이콘·기온·날씨·지역). 오른쪽 위 **설정** 버튼으로 카드가 설정 화면으로 바뀜 |
+| **System** | CPU·GPU 사용률 + 최근 60초 그래프, RAM 사용량(GB·%) + 바, 드라이브 사용률 + 남은 용량. 80% 이상이면 경고색 |
 | **Network** | 다운로드/업로드 속도(단위 자동), 그래프, 오늘 누적 전송량 |
 | **Music** | Spotify 지금 재생 중: 앨범 아트, 제목/아티스트, 진행 바, 재생 컨트롤 |
 | **Calendar** | 구글 캘린더 월 달력 + 다가오는 일정 5개 |
-| **Tasks** | 구글 할 일(Google Tasks) 목록. 마감일 순 정렬, 위젯에서 바로 추가·완료. 목록 3개까지 한 카드에 나눠 표시 |
-| **Settings** | 테마·불투명도·시계 형식·주 시작 요일을 클릭으로 바꾸는 설정 카드. 제목줄만 남기고 접을 수 있음 |
+| **Tasks** | 구글 할 일(Google Tasks) 목록. 마감일 순 정렬, 위젯에서 바로 추가·완료, 동기화 버튼과 마지막 동기화 시각. 목록 3개까지 한 카드에 나눠 표시 |
 
 모든 위젯은 따로 켜고 끄고 옮길 수 있습니다.
 
@@ -30,6 +29,23 @@
    - 또는 Rainmeter **관리(Manage)** 창 → `MyWindowWidget` 폴더 → 위젯 선택 → **Load**
 
 위젯은 드래그해서 옮길 수 있고, 위치는 자동 저장됩니다.
+
+---
+
+## 시계와 날씨 (Clock)
+
+시계 오른쪽에 **지금 있는 곳의 날씨**가 표시됩니다: 날씨 아이콘, 기온, 날씨(`Light rain` 등)와 지역 이름(`명동` 등).
+
+- **위치**: Windows 위치 서비스에서 가져옵니다(Wi-Fi 기반, 수백 m 정도의 정확도).
+  - Windows **설정 → 개인 정보 및 보안 → 위치**에서 **위치 서비스**와 **데스크톱 앱이 위치에 액세스하도록 허용**이 켜져 있어야 합니다.
+  - 꺼져 있으면 `Location off`가 표시됩니다. 위치 서비스를 켜기 싫으면 `Variables.inc`에 좌표를 직접 넣으세요(`WeatherLatitude`, `WeatherLongitude`, 아래 표).
+  - 좌표는 소수 둘째 자리(약 1 km)로 반올림한 뒤 바깥으로 보냅니다.
+- **날씨**: [Open-Meteo](https://open-meteo.com/)(키 필요 없음)에서 30분마다 받습니다(`WeatherRefreshSeconds`). 날씨를 클릭하면 바로 다시 받습니다.
+- **지역 이름**: [BigDataCloud](https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api)의 무료 역지오코딩으로 찾습니다. 위치가 바뀌었을 때만 묻습니다.
+  - 언어는 Windows 지역 형식을 따릅니다(한국어면 `명동`, 영어면 `Myeong-dong`). `WeatherLanguage`로 바꿀 수 있습니다.
+  - `WeatherPlace`에 이름을 직접 넣으면 그 이름을 쓰고 역지오코딩은 하지 않습니다.
+- 날씨에 마우스를 올리면 체감 온도, 최고/최저, 습도, 바람, 전체 지역 이름, 갱신 시각이 나옵니다.
+- 인터넷이 끊기면 마지막 날씨를 그대로 보여줍니다(툴팁에 실패 이유).
 
 ---
 
@@ -139,7 +155,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\
   - 목록 1개: 카드 전체 / 2개: 2등분 / 3개: 3등분
   - 4개 이상: 3등분한 채로 위쪽 **‹ ›**로 넘겨 봅니다(`1/2`처럼 쪽 번호 표시). 마지막 쪽은 마지막 목록 3개를 보여줍니다.
 - 할 일은 **마감일 순**(빠른 날짜가 위, 마감일 없는 할 일은 맨 아래)입니다. 하위 할 일은 상위 할 일 아래에 들여써서, 같은 방식으로 정렬합니다.
-- **TASKS** 제목 클릭: 지금 동기화
+- 위쪽 오른쪽의 **⟳**(또는 **TASKS** 제목) 클릭: 지금 동기화
+  - 그 왼쪽에 마지막 동기화 시각이 `Updated 5m ago`처럼 표시됩니다(마우스를 올리면 정확한 시각). 동기화 중에는 `Syncing…`
 - **○** 클릭: 완료 처리(마우스를 올리면 체크 표시)
 - 목록 이름 오른쪽 **+**: 그 목록에 추가. 입력창에 제목을 쓰고 **Enter**(취소는 Esc 또는 바깥 클릭). 마감일이 없으니 마감일 있는 할 일 다음에 표시됩니다.
 - 마감일은 오른쪽에 `Today`, `Tomorrow`, `Nov 20`처럼 표시되고, 지난 날짜는 경고색입니다.
@@ -152,9 +169,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\
 
 ## 설정 바꾸기
 
-### Settings 위젯 (클릭으로)
+### 설정 화면 (클릭으로)
 
-**Settings** 위젯을 켜면 아래 항목을 클릭으로 바꿀 수 있고, 모든 MyWindowWidget 위젯에 바로 반영됩니다.
+**Clock** 카드 오른쪽 위의 **설정** 버튼을 누르면 카드가 설정 화면으로 바뀝니다. 아래 항목을 클릭으로 바꿀 수 있고, 모든 MyWindowWidget 위젯에 바로 반영됩니다. 오른쪽 위 **✕**를 누르면 시계로 돌아갑니다.
 
 - **Theme**: Brown / Slate / Forest / Mono / Christmas / Cafe
   - **Christmas**, **Cafe**는 색뿐 아니라 폰트와 카드 배경 그림까지 바꾸는 컨셉 테마입니다(아래 "컨셉 테마").
@@ -162,9 +179,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\
 - **24-hour clock**: 24시간제 켜기·끄기
 - **Show seconds**: 초 표시 켜기·끄기
 - **Week starts on**: 달력 시작 요일 Mon / Sun
-- 오른쪽 위 **⌃ / ⌄**(또는 SETTINGS 제목) 클릭: 카드를 접어 제목줄만 남기거나 다시 펼칩니다.
+- **Temperature**: 날씨 기온 단위 °C / °F
 
-선택한 값(접힘 상태 `SettingsCollapsed` 포함)은 `@Resources\Variables.inc`에 저장됩니다.
+선택한 값은 `@Resources\Variables.inc`에 저장됩니다. 값을 바꾸면 위젯 전체가 새로고침되고, Clock 카드는 설정 화면 그대로 다시 열립니다.
 
 ### 직접 고치기
 
@@ -175,14 +192,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\
 | `Use24h` | `1` | `0` = 12시간제(AM/PM) |
 | `ShowSeconds` | `1` | `0` = 초 숨김 |
 | `UseBits` | `0` | `1` = 네트워크 속도를 비트(Mb/s)로 |
-| `WarnThreshold` | `80` | CPU/RAM 경고색 기준(%) |
+| `WarnThreshold` | `80` | CPU/GPU/RAM 경고색 기준(%) |
+| `DiskWarnThreshold` | `90` | 드라이브 사용률 경고색 기준(%) |
+| `SystemDrives` | `C:` | System에 표시할 드라이브(최대 4개, `C:\|D:`처럼 `\|`로 구분). 없는 드라이브는 자동으로 숨김 |
+| `TempUnit` | `C` | 기온 단위 `C` / `F` |
+| `WeatherRefreshSeconds` | `1800` | 날씨 갱신 간격(초, 최소 600) |
+| `WeatherLatitude` / `WeatherLongitude` | (비움) | 날씨 위치 고정(예: `37.5665` / `126.978`). 비우면 Windows 위치 서비스 |
+| `WeatherPlace` | (비움) | 표시할 지역 이름. 비우면 좌표로 찾음 |
+| `WeatherLanguage` | (비움) | 지역 이름 언어(`ko`, `en` …). 비우면 Windows 지역 형식 |
 | `WeekStart` | `Mon` | `Sun` = 일요일부터 시작 |
 | `ICalRefreshSeconds` | `900` | 캘린더 갱신 간격(초) |
 | `Theme` | `Brown` | 테마 파일 이름(`Themes\` 안) |
 | `BgAlpha` | `217` | 카드 불투명도 0~255 (178 = 70%, 217 = 85%, 255 = 100%) |
 | `SuiteScale` | `1` | 전체 크기 배율(예: `1.15`). 보통은 그대로 두세요. 단, 아래 "화면 배율이 100%가 아닐 때"처럼 DPI 재정의를 켰다면 Windows 배율 값(125% → `1.25`)으로 맞춥니다. |
 | `CalendarScale` | `1.5` | Calendar만 다른 위젯보다 몇 배 크게 그릴지 |
-| `CompactWidth` / `CompactHeight` | `300` / `138` | System·Network 카드 크기(4장을 쌓으면 Calendar 높이와 비슷) |
+| `CompactWidth` / `CompactHeight` | `300` / `138` | System·Network 카드 폭 / Network 카드 높이 |
+| `ClockWidth` | `380` | Clock 카드 폭(설정 화면도 같은 폭) |
 
 ### 테마 색 바꾸기
 
@@ -202,8 +227,8 @@ ColorCal1=214,154,96,255
 1. `Brown.inc`를 복사해 `Themes\MyTheme.inc`처럼 저장하고 색을 바꿉니다.
 2. `Variables.inc`의 `ThemeList`에 이름을 추가합니다.
    - 예: `ThemeList=Brown|Slate|Forest|MyTheme`
-   - Settings에는 최대 8개(4개씩 2줄)까지 표시됩니다.
-3. Settings 위젯에서 고르거나, `Theme=MyTheme`으로 직접 바꿉니다.
+   - 설정 화면에는 최대 8개(4개씩 2줄)까지 표시됩니다.
+3. Clock 카드의 설정 화면에서 고르거나, `Theme=MyTheme`으로 직접 바꿉니다.
 
 ### 컨셉 테마 (폰트 + 카드 배경)
 
@@ -243,6 +268,9 @@ CardTrimH=16
 - **긴 제목**: 길면 `…`으로 잘립니다(스크롤 없음).
 - **할 일(Tasks)**: 추가와 완료만 됩니다. 제목·마감일 수정, 삭제, 메모 보기, 완료 취소는 구글 앱에서 하세요. 완료한 할 일은 표시하지 않습니다.
 - **Tasks 표시 줄 수**: 카드 높이가 Calendar에 맞춰 고정이라, 한 구역에 들어가지 않는 할 일은 `+N more`로만 표시됩니다(스크롤 없음).
+- **GPU 사용률**: 작업 관리자와 같은 방식(엔진 종류별 합 중 가장 큰 값)으로, 숨겨진 PowerShell(`GpuLoad.ps1`)이 2초마다 성능 카운터를 읽어 계산합니다. 이 프로세스는 메모리를 약 80 MB 쓰고, System 위젯을 끄면 1분 안에 스스로 종료됩니다. 위젯을 켠 직후 10~20초는 `0%`로 보일 수 있습니다.
+  - Rainmeter에 들어 있는 UsageMonitor 플러그인을 쓰지 않는 이유: 일부 Windows 빌드에서 Rainmeter가 통째로 종료되는 문제가 있었습니다.
+- **날씨**: 위치는 Windows 위치 서비스가 주는 만큼만 정확합니다(데스크톱 PC는 IP·Wi-Fi 기반이라 동네 단위로 틀릴 수 있음). 이럴 땐 `WeatherLatitude` / `WeatherLongitude`로 고정하세요.
 
 ### 화면 배율이 100%가 아닐 때 (위젯이 흐릿함)
 
@@ -286,14 +314,14 @@ tools/            build-rmskin.ps1, dev/ (로그·스크린샷·폰트 메트릭
   mklink /J "%USERPROFILE%\Documents\Rainmeter\Skins\MyWindowWidget" "<저장소>\MyWindowWidget"
   ```
   - ⚠️ 이렇게 연결된 PC에서는 `.rmskin`을 **설치하지 마세요.** 설치기가 기존 폴더(= junction)를 `@Backup`으로 옮겨 버립니다.
-  - Settings 위젯에서 값을 바꾸면 저장소의 `Variables.inc`가 직접 수정됩니다. 커밋하기 전에 diff를 확인하세요.
+  - Clock 카드의 설정 화면에서 값을 바꾸면 저장소의 `Variables.inc`가 직접 수정됩니다. 커밋하기 전에 diff를 확인하세요.
 - **패키지 빌드**: 아래 명령으로 `dist\MyWindowWidget_0.1.0.rmskin`이 만들어집니다.
   ```bat
   powershell -ExecutionPolicy Bypass -File tools\build-rmskin.ps1 -Version 0.1.0
   ```
   - 실제 `Secrets.inc`, 캐시, 받은 캘린더 파일은 패키지에 들어가지 않습니다. 대신 빈 `Secrets.inc`가 들어갑니다.
-- **인코딩**: `Scripts\Calendar.lua`는 일부러 **UTF-16 LE(BOM)**로 저장합니다.
-  - 이렇게 해야 Rainmeter가 유니코드 모드로 실행해 일정 제목의 이모지·다국어가 깨지지 않습니다.
+- **인코딩**: `Scripts\Calendar.lua`, `Tasks.lua`, `Weather.lua`는 일부러 **UTF-16 LE(BOM)**로 저장합니다.
+  - 이렇게 해야 Rainmeter가 유니코드 모드로 실행해 일정·할 일 제목과 지역 이름의 이모지·다국어가 깨지지 않습니다.
   - git에는 `.gitattributes`로 UTF-8로 저장됩니다.
   - 다른 `.ini`/`.lua` 파일은 ASCII만 씁니다.
 
@@ -303,4 +331,5 @@ tools/            build-rmskin.ps1, dev/ (로그·스크린샷·폰트 메트릭
 
 - [WebNowPlaying-Rainmeter](https://github.com/keifufu/WebNowPlaying-Rainmeter) © keifufu — MIT License. 전문은 패키지에 포함된 `@Resources\Licenses\WebNowPlaying.txt`에 있습니다.
 - 폰트: [Jua](https://fonts.google.com/specimen/Jua), [Gaegu](https://fonts.google.com/specimen/Gaegu), [Emilys Candy](https://fonts.google.com/specimen/Emilys+Candy) — SIL Open Font License 1.1. 전문은 `@Resources\Fonts\*-OFL.txt`에 있습니다.
+- 날씨: [Open-Meteo](https://open-meteo.com/) — 데이터는 CC BY 4.0(위젯에서는 날씨 툴팁에 출처 표시). 지역 이름: [BigDataCloud](https://www.bigdatacloud.com/) 무료 역지오코딩 API.
 - MyWindowWidget: MIT License © 2026 leafbell-sii. 저장소 루트의 `LICENSE`, 패키지에서는 `@Resources\Licenses\MyWindowWidget.txt`에 있습니다.

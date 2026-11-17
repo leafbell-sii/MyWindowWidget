@@ -16,7 +16,7 @@
 param(
   [string]$Skin = '',
   [Parameter(Mandatory = $true)][string]$Out,
-  [string[]]$Configs = @('Clock', 'System', 'Network', 'Music', 'Calendar', 'Settings', 'Tasks'),
+  [string[]]$Configs = @('Clock', 'System', 'Network', 'Music', 'Calendar', 'Tasks'),
   [string]$Suite = 'MyWindowWidget'
 )
 

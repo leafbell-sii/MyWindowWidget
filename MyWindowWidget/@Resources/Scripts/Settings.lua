@@ -1,29 +1,37 @@
 -- =============================================================
---  MyWindowWidget - Settings controller
+--  MyWindowWidget - Clock card views and suite settings
+--  (Clock\Clock.ini)
 --
---  Draws the current choices (theme swatches, opacity / week
---  start pills, 24h / seconds toggles) and writes a change to
---  @Resources\Variables.inc, then refreshes every MyWindowWidget skin.
+--  The Clock card has two views:
+--    clock     time + weather (group ClockView)
+--    settings  the suite settings (group SetView, inside the
+--              container MeterSetView)
+--  Switching sets CardH (CardHClock / CardHSet) and shows one
+--  group. In the clock view the AM/PM and seconds meters follow
+--  Use24h / ShowSeconds.
+--
+--  A settings change is written to @Resources\Variables.inc and
+--  refreshes every MyWindowWidget skin. Before that, the file
+--  @Resources\Cache\clock.view is set to "settings" so this card
+--  comes back in the settings view; Initialize() reads and clears
+--  it, so a Rainmeter restart always starts in the clock view.
 --
 --  Theme swatches read ColorBgRGB / ColorAccent straight from
 --  each @Resources\Themes\<Name>.inc listed in ThemeList, so a
 --  new theme only needs its file and a ThemeList entry.
 --
---  Folding (SettingsCollapsed) hides meter group Body and its
---  container MeterBody and shrinks CardH to the title row. It is
---  saved too, but needs no refresh.
---
---  Bangs: SetTheme(i), SetAlpha(a), Toggle('Use24h'|'ShowSeconds'),
---         SetWeekStart('Mon'|'Sun'), ToggleFold()
+--  Bangs: OpenSettings(), CloseSettings(), SetTheme(i),
+--         SetAlpha(a), Toggle('Use24h'|'ShowSeconds'),
+--         SetWeekStart('Mon'|'Sun'), SetTempUnit('C'|'F')
 -- =============================================================
 
-local MAX_THEMES = 8   -- two rows of four swatches in Settings.ini
+local MAX_THEMES = 8   -- two rows of four swatches in Clock.ini
 local ALPHAS = { 178, 217, 255 }   -- 70% / 85% / 100%
 
 local themes = {}
 local c = {}       -- colours
 local g = {}       -- geometry
-local folded = false
+local view = 'clock'
 
 local function var(name, default) return SKIN:GetVariable(name, default or '') end
 local function num(name)
@@ -32,6 +40,8 @@ end
 local function set(meter, option, value)
   SKIN:Bang('!SetOption', meter, option, tostring(value))
 end
+
+local function viewFile() return var('@') .. 'Cache\\clock.view' end
 
 local function readThemeColors(name)
   local f = io.open(var('@') .. 'Themes\\' .. name .. '.inc', 'r')
@@ -67,7 +77,8 @@ local function toggle(meter, on)
     cx, r, knobR, on and c.onAccent or c.secondary))
 end
 
-local function draw()
+-- Settings controls. Shows the swatches of existing themes only.
+local function drawSettings()
   local current = var('Theme', 'Brown')
   for i = 1, MAX_THEMES do
     local t = themes[i]
@@ -107,33 +118,46 @@ local function draw()
   pill('MeterWs1', 'MeterWsText1', mon)
   pill('MeterWs2', 'MeterWsText2', not mon)
 
-  SKIN:Bang('!UpdateMeterGroup', 'Set')
-  SKIN:Bang('!Redraw')
+  local fahrenheit = var('TempUnit', 'C'):upper() == 'F'
+  pill('MeterTu1', 'MeterTuText1', not fahrenheit)
+  pill('MeterTu2', 'MeterTuText2', fahrenheit)
 end
 
--- Open: show Body (the swatches of missing themes stay hidden).
-local function applyFold()
-  SKIN:Bang('!SetVariable', 'CardH', tostring(folded and g.cardHFolded or g.cardHOpen))
-  set('MeterFold', 'Shape2', folded and 'Path FoldDown | Extend FoldStroke' or 'Path FoldUp | Extend FoldStroke')
-  set('MeterFold', 'ToolTipText', folded and 'Unfold' or 'Fold')
-  -- Hiding the container is what shrinks the window (Settings.ini).
-  if folded then
-    SKIN:Bang('!HideMeterGroup', 'Body')
-    SKIN:Bang('!HideMeter', 'MeterBody')
+local function applyView()
+  local settings = view == 'settings'
+  SKIN:Bang('!SetVariable', 'CardH', tostring(settings and g.cardHSet or g.cardHClock))
+  if settings then
+    SKIN:Bang('!HideMeterGroup', 'ClockView')
+    SKIN:Bang('!ShowMeter', 'MeterSetView')
+    SKIN:Bang('!ShowMeterGroup', 'SetView')
+    -- After ShowMeterGroup: the swatches of missing themes hide again.
+    drawSettings()
   else
-    SKIN:Bang('!ShowMeter', 'MeterBody')
-    SKIN:Bang('!ShowMeterGroup', 'Body')
-    draw()
+    SKIN:Bang('!HideMeterGroup', 'SetView')
+    SKIN:Bang('!HideMeter', 'MeterSetView')
+    SKIN:Bang('!ShowMeterGroup', 'ClockView')
+    if var('Use24h', '1') == '1' then SKIN:Bang('!HideMeter', 'MeterAmPm') end
+    if var('ShowSeconds', '1') ~= '1' then SKIN:Bang('!HideMeter', 'MeterSeconds') end
   end
   SKIN:Bang('!UpdateMeter', '*')
   SKIN:Bang('!Redraw')
+end
+
+local function writeViewFile(s)
+  local f = io.open(viewFile(), 'w')
+  if f then
+    f:write(s)
+    f:close()
+  end
 end
 
 local function write(key, value)
   SKIN:Bang('!WriteKeyValue', 'Variables', key, tostring(value), var('@') .. 'Variables.inc')
 end
 
+-- Refresh the suite; this card reopens in the settings view.
 local function applyAll()
+  writeViewFile('settings')
   SKIN:Bang('!RefreshGroup', 'MyWindowWidget')
 end
 
@@ -152,9 +176,15 @@ function Initialize()
   g.pillH = num('PillH')
   g.trackW = num('TrackW')
   g.trackH = num('TrackH')
-  g.cardHOpen = num('CardHOpen')
-  g.cardHFolded = num('CardHFolded')
-  folded = var('SettingsCollapsed', '0') == '1'
+  g.cardHClock = num('CardHClock')
+  g.cardHSet = num('CardHSet')
+
+  local f = io.open(viewFile(), 'r')
+  if f then
+    if (f:read('*l') or '') == 'settings' then view = 'settings' end
+    f:close()
+    writeViewFile('')
+  end
 
   themes = {}
   for name in var('ThemeList', 'Brown'):gmatch('[^|]+') do
@@ -169,17 +199,21 @@ end
 local started = false
 function Update()
   if not started then
+    -- Meters exist now (not yet in Initialize).
     started = true
-    draw()
-    applyFold()
+    applyView()
   end
   return 0
 end
 
-function ToggleFold()
-  folded = not folded
-  write('SettingsCollapsed', folded and 1 or 0)
-  applyFold()
+function OpenSettings()
+  view = 'settings'
+  applyView()
+end
+
+function CloseSettings()
+  view = 'clock'
+  applyView()
 end
 
 function SetTheme(i)
@@ -205,5 +239,11 @@ end
 function SetWeekStart(v)
   if v ~= 'Mon' and v ~= 'Sun' then return end
   write('WeekStart', v)
+  applyAll()
+end
+
+function SetTempUnit(v)
+  if v ~= 'C' and v ~= 'F' then return end
+  write('TempUnit', v)
   applyAll()
 end

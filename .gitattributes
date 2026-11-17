@@ -1,5 +1,6 @@
-# Calendar.lua must stay UTF-16 LE with BOM on disk: that is what
-# makes Rainmeter run it in Unicode mode (see the file header).
+# Calendar.lua, Tasks.lua and Weather.lua must stay UTF-16 LE with BOM on disk: that is what
+# makes Rainmeter run them in Unicode mode (see the file headers).
 # Git stores it as UTF-8 so diffs stay readable.
 MyWindowWidget/@Resources/Scripts/Calendar.lua text working-tree-encoding=UTF-16LE-BOM eol=lf
 MyWindowWidget/@Resources/Scripts/Tasks.lua text working-tree-encoding=UTF-16LE-BOM eol=lf
+MyWindowWidget/@Resources/Scripts/Weather.lua text working-tree-encoding=UTF-16LE-BOM eol=lf

@@ -7,10 +7,11 @@
 [Variables]
 
 ; ---- Theme --------------------------------------------------
-; The Settings skin writes Theme / BgAlpha / BgAlphaHover here.
+; The settings view of the Clock card writes Theme / BgAlpha /
+; BgAlphaHover here.
 ; Name of a file in @Resources\Themes\ (without .inc).
 Theme=Cafe
-; Themes offered by the Settings skin (max 8), separated by |.
+; Themes offered in the settings (max 8), separated by |.
 ThemeList=Brown|Slate|Forest|Mono|Christmas|Cafe
 ; Card opacity 0-255 (178 = 70%, 217 = 85%, 255 = 100%).
 BgAlpha=255
@@ -90,6 +91,8 @@ Radius=(12*#Scale#)
 Pad=(14*#Scale#)
 Gap=(8*#Scale#)
 WidgetWidth=(260*#Scale#)
+; Clock card (time + weather; its settings view uses it too)
+ClockWidth=(380*#Scale#)
 ; Short cards (System, Network): four of them plus three Gaps
 ; are about as tall as the Calendar (CalendarScale 1.5).
 CompactWidth=(300*#Scale#)
@@ -120,10 +123,31 @@ TasksWidth=(300*#Scale#)
 ; ---- Behaviour ----------------------------------------------
 ; Values at or above this percent turn ColorWarn (System skin).
 WarnThreshold=80
+; Drives at or above this percent used turn ColorWarn (System).
+DiskWarnThreshold=90
+; System: drives to show (up to 4), separated by |, e.g. C:|D:
+SystemDrives=C:
 ; Clock: 1 = 24-hour, 0 = 12-hour with AM/PM
 Use24h=0
 ; Clock: 1 = show seconds next to the time
 ShowSeconds=1
+; Weather (Clock card): temperature unit, C or F
+TempUnit=C
+; Weather: how often to re-read it, in seconds (min 600).
+; Clicking the weather reads it at once.
+WeatherRefreshSeconds=1800
+; Weather: fixed place, e.g. WeatherLatitude=37.5665 and
+; WeatherLongitude=126.978. Empty = ask Windows, which needs
+; Windows Settings > Privacy & security > Location > "Let desktop
+; apps access your location".
+WeatherLatitude=
+WeatherLongitude=
+; Weather: name shown for the place. Empty = looked up from the
+; location (BigDataCloud), in WeatherLanguage.
+WeatherPlace=
+; Weather: language of the looked-up place name (ISO 639-1, e.g.
+; ko, en). Empty = the language of the Windows regional format.
+WeatherLanguage=
 ; Network: 0 = bytes (KB/s, MB/s), 1 = bits (Kb/s, Mb/s)
 UseBits=0
 ; Calendar: first day of the week, Mon or Sun
@@ -140,9 +164,6 @@ TasksRefreshSeconds=300
 ; Tasks: font of the "Add task" text box. The box can only use
 ; fonts installed in Windows, not the bundled @Resources\Fonts.
 InputFontFace=Segoe UI
-; Settings: 1 = folded (only the title and the fold button show).
-; The Settings skin writes this.
-SettingsCollapsed=0
 
 ; ---- Internal (used by the shared styles) -------------------
 BgFill=#ColorBg#

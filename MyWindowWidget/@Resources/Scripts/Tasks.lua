@@ -47,6 +47,8 @@ local queue = {}
 local running               -- queue item being run, nil = idle
 local runSince = 0
 local lastFetch = 0
+local syncedAt              -- os.time() of the last successful fetch
+local statusShown           -- header status text now on screen
 local started = false
 local doneIds = {}          -- completed here, not yet confirmed
 local adds = {}             -- { listId, title } added here, not yet confirmed
@@ -132,6 +134,13 @@ local function loadCache()
     local f = split((line:gsub('\r$', '')))
     if f[1] == 'status' then
       status, detail = f[2] or 'error', f[3] or ''
+    elseif f[1] == 'updated' then
+      -- Local time; older caches have no seconds.
+      local y, mo, d, h, mi, sec = (f[2] or ''):match('^(%d+)-(%d+)-(%d+) (%d+):(%d+):?(%d*)$')
+      if y then
+        syncedAt = os.time { year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+          hour = tonumber(h), min = tonumber(mi), sec = tonumber(sec) or 0 }
+      end
     elseif f[1] == 'list' then
       lists[#lists + 1] = { id = f[2], title = f[3] or '', tasks = {} }
     elseif f[1] == 'task' and not doneIds[f[3]] then
@@ -188,15 +197,38 @@ local function emptyText()
   return 'Loading…'
 end
 
+-- "just now", "5m ago", "3h ago", "2d ago".
+local function ago(t)
+  local s = math.max(0, os.time() - t)
+  if s < 60 then return 'just now' end
+  if s < 3600 then return math.floor(s / 60) .. 'm ago' end
+  if s < 86400 then return math.floor(s / 3600) .. 'h ago' end
+  return math.floor(s / 86400) .. 'd ago'
+end
+
 local function statusText()
   if running then return 'Syncing…', cfg.secondary end
   if status == 'offline' then return 'Offline', cfg.warn end
   if status == 'error' then
     local d = detail ~= '' and detail or 'Error'
-    if #d > 32 then d = d:sub(1, 30) .. '…' end
+    if #d > 24 then d = d:sub(1, 22) .. '…' end
     return d, cfg.warn
   end
-  return '', cfg.secondary
+  if blocked() or not syncedAt then return '', cfg.secondary end
+  return 'Updated ' .. ago(syncedAt), cfg.secondary
+end
+
+-- Header status (left of the sync button). Also called every
+-- second from Update(); redraws only when the text changes.
+local function drawStatus()
+  local st, color = statusText()
+  if st == statusShown then return false end
+  statusShown = st
+  set('MeterStatus', 'Text', st)
+  set('MeterStatus', 'FontColor', color)
+  set('MeterStatus', 'ToolTipText', syncedAt and ('Last synced ' .. os.date('%b %d %H:%M', syncedAt)) or '')
+  set('MeterSync', 'IconColor', 'Stroke Color ' .. (running and cfg.muted or cfg.secondary))
+  return true
 end
 
 local function hideRow(i)
@@ -245,16 +277,19 @@ local function draw()
   local pages = pageCount()
   page = math.max(1, math.min(page, pages))
 
-  -- Header: title, status, paging.
+  -- Header, right to left: paging, sync button, status.
   local paging = not off and pages > 1
   show('MeterPrev', paging)
   show('MeterNext', paging)
   show('MeterPage', paging)
   set('MeterPage', 'Text', page .. '/' .. pages)
-  local st, stColor = statusText()
-  set('MeterStatus', 'Text', st)
-  set('MeterStatus', 'FontColor', stColor)
-  set('MeterStatus', 'X', paging and (cfg.cardW - cfg.pad - 2 * cfg.ic - cfg.pageW - cfg.gap) or (cfg.cardW - cfg.pad))
+  local syncX = cfg.cardW - cfg.pad - cfg.ic
+  if paging then syncX = syncX - 2 * cfg.ic - cfg.pageW - cfg.gap end
+  set('MeterSync', 'X', syncX)
+  show('MeterSync', not off)
+  set('MeterStatus', 'X', syncX - cfg.gap / 2)
+  statusShown = nil
+  drawStatus()
 
   -- Which lists are visible.
   shown = {}
@@ -394,6 +429,10 @@ function Update()
   if not running and os.time() - lastFetch >= refreshEvery then
     fetch()
     draw()
+  elseif drawStatus() then
+    SKIN:Bang('!UpdateMeter', 'MeterStatus')
+    SKIN:Bang('!UpdateMeter', 'MeterSync')
+    SKIN:Bang('!Redraw')
   end
   return 0
 end

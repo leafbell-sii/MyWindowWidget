@@ -3,7 +3,7 @@
 ;  Color format: R,G,B,A  (A: 0 = transparent, 255 = opaque)
 ;  Card opacity is NOT set here: Variables.inc builds ColorBg /
 ;  ColorBgHover / ColorOnAccent from ColorBgRGB + BgAlpha, so the
-;  Settings skin can change opacity for every theme.
+;  settings view (Clock card) can change opacity for every theme.
 ;  To add a theme: copy this file, rename it, add the name to
 ;  ThemeList in Variables.inc.
 ; =============================================================

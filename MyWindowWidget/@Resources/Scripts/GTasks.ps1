@@ -27,7 +27,7 @@
 
   Cache file (UTF-8 without BOM, tab separated, one record per line):
     status   <ok|setup|auth|offline|error>  <detail>
-    updated  <yyyy-MM-dd HH:mm>           last successful fetch
+    updated  <yyyy-MM-dd HH:mm:ss>        last successful fetch (local time)
     list     <id>  <title>                     in Google's order
     task     <list id>  <id>  <depth 0|1>  <due yyyy-MM-dd or empty>  <title>
   Tasks are sorted by due date (earliest first, no due date last;
@@ -440,7 +440,7 @@ try {
 
   $lines = New-Object System.Collections.Generic.List[string]
   if ($note) { $lines.Add("status`terror`t$note") } else { $lines.Add("status`tok`t") }
-  $lines.Add("updated`t" + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+  $lines.Add("updated`t" + (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
   foreach ($l in $lists) { $lines.Add("list`t$($l.id)`t$(Get-Clean $l.title)") }
 
   foreach ($l in $lists) {

@@ -17,7 +17,7 @@
   Left out of the package: the real Secrets.inc (replaced by the
   empty template), downloaded calendars / caches, .gitignore and
   placeholder-only folders. Variables.inc is taken from git HEAD,
-  not the working copy (the Settings skin edits the working copy).
+  not the working copy (the Clock settings view edits the working copy).
 
   Do NOT install the result on a machine where Skins\MyWindowWidget is a
   junction to this repository: the installer moves the existing
@@ -76,7 +76,7 @@ Get-ChildItem -LiteralPath $skinDir -Recurse -File -Force | ForEach-Object {
 $entries.Add([pscustomobject]@{ Zip = 'Skins/MyWindowWidget/@Resources/Secrets.inc'; Path = "$skinDir\@Resources\Secrets.example.inc"; Bytes = $null })
 
 # Variables.inc ships with the committed defaults. On a dev machine the
-# Settings skin writes the developer's own choices (theme, clock, ...)
+# Clock settings view writes the developer's own choices (theme, clock, ...)
 # into the working copy; those must not become the package defaults.
 $varsRel = 'MyWindowWidget/@Resources/Variables.inc'
 $varsTmp = [System.IO.Path]::GetTempFileName()
@@ -89,7 +89,7 @@ Remove-Item $varsTmp
 $headText = [Text.Encoding]::UTF8.GetString($varsBytes) -replace "`r", ''
 $workText = [System.IO.File]::ReadAllText("$skinDir\@Resources\Variables.inc") -replace "`r", ''
 if ($headText -ne $workText) {
-  Write-Warning 'Variables.inc in the working copy differs from HEAD (e.g. Settings changes); packaging the HEAD version.'
+  Write-Warning 'Variables.inc in the working copy differs from HEAD (e.g. settings view changes); packaging the HEAD version.'
 }
 $entries.Add([pscustomobject]@{ Zip = 'Skins/MyWindowWidget/@Resources/Variables.inc'; Path = $null; Bytes = $varsBytes })
 

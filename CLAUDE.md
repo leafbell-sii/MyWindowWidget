@@ -23,7 +23,7 @@ Rainmeter 위젯 모음 **MyWindowWidget**의 저장소입니다. 원래 명세(
 ```
 MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지에 그대로 들어감)
   @Resources/
-    Variables.inc            공용 설정. Theme/BgAlpha/Use24h 등. Settings 스킨이 여기에 씀
+    Variables.inc            공용 설정. Theme/BgAlpha/Use24h 등. Clock의 설정 화면이 여기에 씀
     Styles.inc               공용 MeterStyle (StyleCard, StyleTitle, StyleValue ...)
     Themes/*.inc             테마 (ColorBgRGB + 나머지 R,G,B,A). ThemeList에 등록
                              Christmas/Cafe는 폰트·카드 그림까지 정하는 컨셉 테마
@@ -31,17 +31,20 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
     Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy) + *-OFL.txt
     Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
-    Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasks.*) - git 제외
-    Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings, Tasks
-                             GTasks.ps1 (Google Tasks OAuth/API, RunCommand로 실행)
-  Clock/ System/ Network/ Music/ Calendar/ Settings/ Tasks/   스킨 (.ini 하나씩)
+    Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasks.*, weather.txt,
+                             gpu.txt/gpu.alive, clock.view) - git 제외
+    Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings(Clock 화면 전환+설정),
+                             Weather, System(GPU 값+드라이브 줄), Tasks
+                             PowerShell(RunCommand로 실행): GTasks.ps1 (Google Tasks OAuth/API),
+                             Weather.ps1 (위치·지명·날씨), GpuLoad.ps1 (GPU 사용률 상주 샘플러)
+  Clock/ System/ Network/ Music/ Calendar/ Tasks/   스킨 (.ini 하나씩)
 vendor/WebNowPlaying/        플러그인 DLL 32/64bit (v3.0.0-alpha.5, sha256은 SOURCE.md)
 tools/build-rmskin.ps1       dist/MyWindowWidget_<버전>.rmskin 생성
 tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
                              font-metrics.py, make-concept-art.py (Pillow/fontTools 필요)
 ```
 
-- 모든 스킨은 `Group=MyWindowWidget`입니다. Settings는 값을 바꾼 뒤 `!RefreshGroup MyWindowWidget`으로 전체를 새로고침합니다.
+- 모든 스킨은 `Group=MyWindowWidget`입니다. Clock의 설정 화면은 값을 바꾼 뒤 `!RefreshGroup MyWindowWidget`으로 전체를 새로고침합니다.
 - 카드 배경은 각 스킨의 `[Variables]`에 `CardW` / `CardH`를 정하고 `MeterStyle=StyleCard`를 씁니다.
   - `CardH`는 보통 `([마지막미터:YH]+#Pad#)` 형태입니다.
   - `[MeterBg]`에 `@IncludeCardArt=#@#CardArt.inc`가 있어 테마 그림(텍스처, 위쪽 장식 띠)이 카드 색 위에 그려집니다. 새 스킨도 똑같이 넣습니다.
@@ -54,6 +57,8 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **연결**: `문서\Rainmeter\Skins\MyWindowWidget`이 저장소의 `MyWindowWidget/`를 가리키는 **junction**입니다.
   - 파일을 고친 뒤 `Rainmeter.exe !Refresh "MyWindowWidget\Clock"`이나 `!RefreshGroup MyWindowWidget`을 실행하면 바로 반영됩니다.
   - 새 config 폴더를 추가했으면 먼저 `!RefreshApp`을 실행합니다.
+  - ⚠️ `!RefreshApp`은 Music(WebNowPlaying v3 alpha)이 켜져 있으면 Rainmeter를 죽일 수 있습니다(2026-11-17, 오류 모듈 `WebNowPlaying.DLL_unloaded`). 죽으면 `Start-Process "$env:ProgramFiles\Rainmeter\Rainmeter.exe"`로 다시 띄웁니다.
+  - Rainmeter가 조용히 꺼졌는지는 `Get-Process Rainmeter`와 이벤트 로그(Application, Windows Error Reporting)로 확인합니다. 로그 리더는 프로세스가 없으면 `Get-Process` 오류를 냅니다.
 - **로그 확인**: `tools/dev/read-rainmeter-log.ps1 -Since HH:mm:ss`
   - About 창의 리스트뷰를 직접 읽습니다. 파일 로깅을 켤 필요가 없습니다.
 - **스크린샷**: `tools/dev/screenshot-skins.ps1 -Skin Calendar -Out <png>`
@@ -66,9 +71,10 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
   - Lua로 미터 옵션이나 measure 값을 로그에 찍어 확인합니다.
   - PowerShell에서는 `Start-Process -ArgumentList '...'`로 인용부호를 통째로 넘겨야 안 깨집니다.
 - **⚠️ 이 PC에서는 `.rmskin` 설치 금지.** 설치기가 기존 폴더(junction)를 `Skins\@Backup`으로 옮겨 버립니다.
-- **⚠️ Settings 스킨을 누르면 저장소의 `Variables.inc`가 바뀝니다.**
+- **⚠️ Clock의 설정 화면을 누르면 저장소의 `Variables.inc`가 바뀝니다.**
   - 커밋 전에 diff를 확인하세요.
-  - 저장소 기본값은 `Theme=Brown`, `BgAlpha=217`, `Use24h=1`, `ShowSeconds=1`, `WeekStart=Mon`입니다.
+  - 저장소 기본값은 `Theme=Brown`, `BgAlpha=217`, `Use24h=1`, `ShowSeconds=1`, `WeekStart=Mon`, `TempUnit=C`, `SystemDrives=C:`입니다.
+  - `build-rmskin.ps1`은 `Variables.inc`를 git HEAD에서 가져옵니다. 새 변수를 추가했으면 (개인 값은 빼고) 커밋해야 패키지에 들어갑니다.
   - 사용자가 실제로 쓰는 값은 작업 폴더에만 남겨 둡니다.
 
 ## Rainmeter 함정 (직접 겪고 확인한 것)
@@ -89,7 +95,7 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
   - 예: `"^0?$":""` (실제로 겪어서 강제 종료한 적 있음)
 - **Hidden 미터도 업데이트됩니다.** Image 미터는 숨겨져 있어도 이미지를 로드하려고 합니다.
 - **Hidden 미터도 `DynamicWindowSize` 창 크기에 Y 위치만큼 영향을 줍니다**(높이는 0으로 계산, 2026-11-17 확인).
-  - 그래서 미터를 숨겨서 카드를 줄이려면 그 미터들을 컨테이너에 넣고 컨테이너를 숨깁니다(Settings 접기의 `MeterBody`).
+  - 그래서 미터를 숨겨서 카드를 줄이려면 그 미터들을 컨테이너에 넣고 컨테이너를 숨깁니다(Clock 설정 화면의 `MeterSetView`). 또는 숨긴 미터의 Y를 0으로 옮깁니다(System 드라이브 줄).
 - **WebNowPlaying `Cover`**: 커버가 없으면 문자열 대신 `"0"`을 돌려줍니다. 그래서 `MeasureCoverPath`로 `^0$`를 빈 값으로 바꿔 씁니다.
 - **`!WriteKeyValue`는 없는 파일을 만들지 못합니다.**
 - **`!DeactivateConfig`·`!Refresh`·`!Move`·`!CommandMeasure`를 로드되지 않은 스킨에 쓰면 로그에 오류나 경고가 남습니다.**
@@ -104,6 +110,10 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **Lua에서 미터/measure를 다룰 때**: `Initialize()`에서는 아직 없는 섹션이 있을 수 있습니다. 첫 `Update()`에서 그리기와 활성화를 합니다.
 - **`SKIN:Bang` 인수는 `tostring`으로 넘깁니다.** 크기 변수는 `SKIN:ParseFormula(SKIN:ReplaceVariables('#Var#'))`로 숫자로 바꿉니다.
 - **MeterStyle에 넣은 옵션**(Path 정의, `Extend` 대상, 그라디언트)도 Shape 미터에서 정상적으로 읽힙니다.
+- **Shape `Extend`는 중첩되지 않습니다**: Extend 대상 안에 또 `Extend`가 있으면 `Extend cannot be used recursively` 경고(2026-11-17). 선 속성은 Shape 줄에 직접 쓰고 색만 `Extend IconColor`처럼 뺍니다.
+- **`Combine`으로 합친 원본 도형은 그려지지 않습니다.** 날씨 아이콘은 구름을 Union으로, 해·달은 구름 모양을 Exclude로 잘라 겹침을 처리합니다(불투명 채우기 없이).
+- **Calc `?:`의 안 쓰는 쪽도 0 나누기 경고를 냅니다**(`Calc: Division by 0`, 없는 드라이브, 2026-11-17). 분모를 `Max(x,1)`로 감쌉니다.
+- **`StringAlign=Right` String 미터의 `[Meter:X]`는 글자 상자의 왼쪽 끝**입니다(날씨 아이콘을 기온 왼쪽에 붙일 때 확인).
 - **WebParser**
   - `UpdateRate`는 업데이트 횟수입니다. `Update=1000` × `900` = 15분입니다.
   - 연결 실패 시 로그에는 원인만 남고 URL은 남지 않습니다.
@@ -116,6 +126,10 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **`!WriteKeyValue`는 스킨 폴더 밖 경로를 거부합니다**(`Illegal path`). 저장소 경로 대신 `문서\Rainmeter\Skins\MyWindowWidget\...`(junction) 경로를 씁니다.
 - **@Include한 파일에서 첫 섹션 앞에 둔 키는 include한 쪽 섹션에 합쳐지지 않습니다**(2026-11-17 확인). include 파일에서 변수를 정의하려면 그 파일에도 `[Variables]` 헤더를 씁니다.
 - **RunCommand**: Lua에서 `!SetOption MeasureRun Parameter ...` → `!UpdateMeasure` → `!CommandMeasure ... Run` 순서로 하면 새 Parameter로 실행됩니다(2026-11-17 확인).
+  - 기본 Program은 `%ComSpec% /U /C`(cmd.exe)입니다. 문서상 `State=Hide`는 새로고침·언로드 때 "실행한 프로그램"을 종료하는데, 그건 cmd.exe라 그 밑의 PowerShell은 남을 수 있습니다. 그래서 상주하는 GpuLoad.ps1은 mutex(한 개만) + 하트비트 파일(`gpu.alive`이 60초 넘게 안 바뀌면 종료)로 스스로 정리합니다. TODO(verify): PowerShell이 실제로 남는지.
+- **UsageMonitor 플러그인(1.0.1.0)은 이 PC에서 Rainmeter를 죽입니다**(Windows 11 build 26300, `Alias=CPU`·`Alias=GPU`·Category/Counter 지정 모두, .NET NullReferenceException, 2026-11-17). 쓰지 않습니다.
+  - GPU 사용률은 GpuLoad.ps1이 `PerformanceCounterCategory("GPU Engine").ReadCategory()`로 읽습니다(샘플당 CPU 약 8 ms). `Get-Counter`는 샘플당 약 1.4초라 못 씁니다.
+  - 값은 작업 관리자와 같은 정의: 엔진 종류별로 프로세스 합 → 가장 큰 값.
   - 실행 중에 다시 Run하면 오류 101이 납니다. 그래서 Tasks.lua는 큐를 두고 한 번에 하나만 실행합니다.
 - **InputText 입력을 Lua로 넘기기**: `[!CommandMeasure M """Add([==[$UserInput$]==])"""]`
   - 한글, `"`, `\`가 그대로 도착합니다(bang으로 같은 문자열을 넣어 2026-11-17 확인).
@@ -147,12 +161,27 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
     - 목록 1~3개는 같은 높이의 구역으로 나누고, 4개 이상이면 3구역 + `< >` 페이지입니다(마지막 쪽은 마지막 3개). 줄 미터 22개와 구역 미터 3벌을 Lua가 배치합니다.
     - 추가 입력창은 Lua가 `!SetOption MeasureTaskInput Y`로 구역 머리줄 위로 옮긴 뒤 엽니다.
   - 추가·완료만 지원합니다(수정·삭제·완료 취소 없음).
-- **Settings 접기**: `SettingsCollapsed`(Variables.inc)에 저장합니다. 새로고침 없이 Lua가 `CardH`, 컨테이너 `MeterBody`, `Body` 그룹을 바꿉니다.
+- **Clock + Settings 통합 (2026-11-17, 사용자 요청)**: Settings config는 없앴고, Clock 카드 오른쪽 위 "설정" 버튼(한국어 라벨은 사용자 요청, `[\xC124][\xC815]`)이 같은 카드를 설정 화면으로 바꿉니다. ✕로 돌아옵니다. 시계의 날짜 줄은 사용자 요청으로 없앴습니다.
+  - 화면 전환은 Settings.lua: `CardH`를 `CardHClock`/`CardHSet`으로, 그룹 `ClockView` / `SetView`(+컨테이너 `MeterSetView`)를 보이고 숨김. AM/PM·초 표시도 Lua가 정합니다.
+  - 설정을 바꾸면 전체 새로고침 전에 `Cache\clock.view`에 `settings`를 써 두고, 다시 로드될 때 설정 화면으로 열고 지웁니다(Rainmeter 재시작은 시계 화면).
+  - 이전의 접기 기능(`SettingsCollapsed`)은 없앴습니다.
+- **날씨 (Clock)**: 위치는 Windows 위치 서비스(System.Device.Location, 이 PC에서 Wi-Fi 기반 약 200 m), 날씨는 Open-Meteo(키 없음, CC BY 4.0 → 툴팁에 출처), 지명은 BigDataCloud `reverse-geocode-client`(무료, 기기 위치를 기기에서 부르는 조건).
+  - Nominatim은 정책상 주기적 요청을 금지하고 원격 차단 스위치를 요구해서 쓰지 않았습니다.
+  - 좌표는 소수 둘째 자리로 반올림해서 보내고 캐시합니다. 지명은 좌표·언어가 바뀔 때만 다시 묻습니다.
+  - 항상 섭씨·km/h로 받고 °F 변환은 Lua(`TempUnit`)가 합니다. 그래서 단위를 바꿔도 다시 받지 않습니다.
+  - 2026-11-17에 `api.open-meteo.com` 자체가 약 15분 동안 응답하지 않은 적이 있습니다(다른 Open-Meteo 호스트는 정상). 실패하면 마지막 값을 유지하고 5분 뒤 재시도합니다.
+- **System**: CPU·GPU 그래프 2줄, RAM, 드라이브 줄(`SystemDrives`, 최대 4, 없는 드라이브는 숨기고 30초마다 다시 확인). 카드 높이는 내용에 맞춰 바뀝니다(이전처럼 Calendar 높이에 맞춘 고정값이 아님).
+  - 이 PC의 G:는 Google Drive 가상 드라이브라 기본값에 넣지 않았습니다.
+- **Tasks 동기화 표시**: 헤더 오른쪽에 동기화 버튼(⟳)과 `Updated 5m ago`(1초마다 갱신, 글자가 바뀔 때만 다시 그림). 시각은 tasks.txt의 `updated` 줄(초까지)입니다.
 - **라이선스**: MIT (© 2026 leafbell-sii). WebNowPlaying(MIT) 고지는 패키지에 함께 넣습니다.
 
 ## 남은 일 / 아이디어
 
 - `.rmskin` **실제 설치 테스트**: 다른 PC, 또는 junction을 해제한 상태에서 해야 합니다.
+- **이번 개편(2026-11-17) 미검증 항목**
+  - 날씨: 위치 서비스가 꺼진 경우(`Location off`) 화면 — 이 PC 설정을 바꿀 수 없어 확인 못 함. 여러 줄 툴팁(Lua에서 `\r\n`)이 실제로 줄바꿈되는지.
+  - 마우스로 직접 누르는 것(설정 버튼 hover, ✕, 동기화 버튼, 날씨 클릭)은 bang으로만 확인했습니다.
+  - 테마별(특히 Christmas, 기본 테마) Clock/System 모양은 Cafe에서만 봤습니다.
 - **Tasks 미검증 항목**: 입력창(InputText)이 열린 모양과 위치(DPI 재정의 환경, `!SetOption Y`로 구역마다 옮기는 것 포함)는 아직 확인하지 못했습니다.
   - 단일 카드 개편 후(2026-11-17) 확인한 것: 실제 계정 fetch와 정렬, 2구역 표시, 가짜 캐시로 5개 목록 페이지 전환·`+N more`·하위 할 일. 추가·완료는 개편 후 다시 해 보지 않았습니다.
   - 실제 계정으로 확인한 것(2026-11-17): setup, 조회(목록 2개), bang 경로로 한글·따옴표 제목 추가 → 완료, 목록 전환. 로그 오류 없음.
@@ -160,5 +189,5 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **Music 미검증 항목**: 재생 중일 때 일시정지 아이콘 전환과 진행 바 클릭 탐색은 아직 확인하지 못했습니다(일시정지 상태 표시는 확인함).
 - **Calendar 미지원 반복 규칙**: `MONTHLY`/`YEARLY` + `BYDAY`("둘째 화요일"), `BYMONTHDAY`, `RDATE`는 첫 회차만 표시합니다.
 - **Calendar 시간대**: Asia/Seoul이 아닌 TZID는 로컬 시간으로 취급합니다(VTIMEZONE 미해석).
-- 명세의 선택 범위 밖이었던 것: Disk, Weather, GPU/온도, Clock 보조 타임존.
+- 명세의 선택 범위 밖이었던 것: GPU 온도, Clock 보조 타임존. (Disk·Weather·GPU 사용률은 2026-11-17에 추가)
 - 기본 테마(Brown/Slate/Forest/Mono)는 여전히 시스템 폰트 Segoe UI를 씁니다.

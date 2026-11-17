@@ -3,7 +3,7 @@
 ;  Color format: R,G,B,A  (A: 0 = transparent, 255 = opaque)
 ;  Card opacity is NOT set here: Variables.inc builds ColorBg /
 ;  ColorBgHover / ColorOnAccent from ColorBgRGB + BgAlpha, so the
-;  Settings skin can change opacity for every theme.
+;  settings view (Clock card) can change opacity for every theme.
 ;
 ;  A concept theme also sets fonts and card art; any key from the
 ;  "Theme defaults" block of Variables.inc can be overridden here.
