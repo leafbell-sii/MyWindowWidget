@@ -63,7 +63,10 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1
 
 ## Rainmeter 함정 (직접 겪고 확인한 것)
 
-- **DPI**: Rainmeter 4.5는 Windows 배율을 이미 적용합니다. `SuiteScale`은 1로 둡니다(1.25로 하면 두 배로 커짐).
+- **DPI**: Rainmeter 4.5.28은 **DPI-unaware** 프로세스입니다(`GetProcessDpiAwareness` = 0, 2026-11-17 확인).
+  - 그래서 Windows가 125%로 비트맵을 늘려 그리고, 이것이 흐릿함의 원인입니다. 안티앨리어싱 문제가 아닙니다(텍스트·Line·Histogram은 `AntiAlias=1`, Shape는 Direct2D).
+  - 선명하게 하려면 Rainmeter.exe 호환성 → "높은 DPI 조정 동작 재정의: 애플리케이션"을 켜고 `SuiteScale`을 Windows 배율(1.25)로 둡니다. 이때 `!Move`·`WindowX/Y`는 물리 픽셀이 됩니다.
+  - 재정의 없이 `SuiteScale`을 1.25로 하면 두 번 커집니다. 저장소 기본값은 1입니다.
 - **스킨별 배율**: `Scale=(#SuiteScale#*#SkinScale#)`입니다. 스킨의 `[Variables]`에서 `SkinScale`을 다시 정의하면(Calendar: `SkinScale=#CalendarScale#`) 그 스킨의 모든 크기가 함께 커집니다.
   - include한 키를 스킨에서 다시 정의하면 **값은 나중 것, 전개 위치는 처음 것**을 따릅니다(2026-11-17 확인). 그래서 `CalendarScale`은 `Variables.inc`에서 `SkinScale`보다 앞에 둡니다.
   - `!Move` 좌표와 Rainmeter.ini의 `WindowX/Y`는 논리 좌표입니다.

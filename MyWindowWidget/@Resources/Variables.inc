@@ -9,13 +9,13 @@
 ; ---- Theme --------------------------------------------------
 ; The Settings skin writes Theme / BgAlpha / BgAlphaHover here.
 ; Name of a file in @Resources\Themes\ (without .inc).
-Theme=Brown
+Theme=Mono
 ; Themes offered by the Settings skin (max 4), separated by |.
 ThemeList=Brown|Slate|Forest|Mono
 ; Card opacity 0-255 (178 = 70%, 217 = 85%, 255 = 100%).
-BgAlpha=217
+BgAlpha=255
 ; Opacity while the mouse is over a card.
-BgAlphaHover=235
+BgAlphaHover=255
 @IncludeTheme=#@#Themes\#Theme#.inc
 ; Built from the theme's ColorBgRGB (must come after the include).
 ColorBg=#ColorBgRGB#,#BgAlpha#
@@ -24,10 +24,13 @@ ColorOnAccent=#ColorBgRGB#,255
 
 ; ---- Scale --------------------------------------------------
 ; Overall size multiplier for every size below.
-; Rainmeter 4.5+ already follows Windows display scaling
-; (125% / 150%), so keep 1 unless you just want the suite
-; larger or smaller (e.g. 1.15 or 0.9).
-SuiteScale=1
+; Keep 1: Windows stretches Rainmeter to the display scaling
+; (125% / 150%), which looks soft. For sharp skins, set
+; Rainmeter.exe > Properties > Compatibility > high DPI
+; override = Application, then set this to the display
+; scaling (1.25 / 1.5). See README.
+; Other values just make the suite larger or smaller.
+SuiteScale=1.25
 ; Calendar card size relative to the rest of the suite.
 CalendarScale=1.5
 ; Per-skin multiplier. Leave 1 here: a skin that is drawn
@@ -77,7 +80,7 @@ CalendarWidth=(280*#Scale#)
 ; Values at or above this percent turn ColorWarn (System skin).
 WarnThreshold=80
 ; Clock: 1 = 24-hour, 0 = 12-hour with AM/PM
-Use24h=1
+Use24h=0
 ; Clock: 1 = show seconds next to the time
 ShowSeconds=1
 ; Network: 0 = bytes (KB/s, MB/s), 1 = bits (Kb/s, Mb/s)
