@@ -1,0 +1,7 @@
+# Private Google Calendar iCal addresses - never commit
+@Resources/Secrets.inc
+
+# Runtime caches (downloaded .ics, network "today" counter)
+@Resources/Cache/*
+!@Resources/Cache/.keep
+*.ics
