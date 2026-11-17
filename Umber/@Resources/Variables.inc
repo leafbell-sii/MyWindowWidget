@@ -7,9 +7,20 @@
 [Variables]
 
 ; ---- Theme --------------------------------------------------
+; The Settings skin writes Theme / BgAlpha / BgAlphaHover here.
 ; Name of a file in @Resources\Themes\ (without .inc).
 Theme=Brown
+; Themes offered by the Settings skin (max 4), separated by |.
+ThemeList=Brown|Slate|Forest|Mono
+; Card opacity 0-255 (178 = 70%, 217 = 85%, 255 = 100%).
+BgAlpha=217
+; Opacity while the mouse is over a card.
+BgAlphaHover=235
 @IncludeTheme=#@#Themes\#Theme#.inc
+; Built from the theme's ColorBgRGB (must come after the include).
+ColorBg=#ColorBgRGB#,#BgAlpha#
+ColorBgHover=#ColorBgRGB#,#BgAlphaHover#
+ColorOnAccent=#ColorBgRGB#,255
 
 ; ---- Scale --------------------------------------------------
 ; Overall size multiplier for every size below.

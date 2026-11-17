@@ -9,6 +9,7 @@
 | **Network** | 다운로드/업로드 속도(단위 자동), 그래프, 오늘 누적 전송량 |
 | **Music** | Spotify 지금 재생 중: 앨범 아트, 제목/아티스트, 진행 바, 재생 컨트롤 |
 | **Calendar** | 구글 캘린더 월 달력 + 다가오는 일정 5개 |
+| **Settings** | 테마·불투명도·시계 형식·주 시작 요일을 클릭으로 바꾸는 설정 카드 |
 
 모든 위젯은 따로 켜고 끄고 옮길 수 있습니다.
 
@@ -90,7 +91,21 @@ Spotify 외에 Windows 미디어 정보를 제공하는 다른 플레이어도 �
 
 ## 설정 바꾸기
 
-설정은 모두 `@Resources\Variables.inc`에 있습니다. 메모장으로 고친 뒤 위젯을 새로고침하세요. 전체를 한 번에 새로고침하려면 Rainmeter 관리 창 → **모두 새로고침(Refresh all)**을 누르면 됩니다.
+### Settings 위젯 (클릭으로)
+
+**Settings** 위젯을 켜면 아래 항목을 클릭으로 바꿀 수 있고, 모든 Umber 위젯에 바로 반영됩니다.
+
+- **Theme**: Brown / Slate / Forest / Mono
+- **Opacity**: 카드 불투명도 70% / 85% / 100%
+- **24-hour clock**: 24시간제 켜기·끄기
+- **Show seconds**: 초 표시 켜기·끄기
+- **Week starts on**: 달력 시작 요일 Mon / Sun
+
+선택한 값은 `@Resources\Variables.inc`에 저장됩니다.
+
+### 직접 고치기
+
+모든 설정은 `@Resources\Variables.inc`에 있습니다. 메모장으로 고친 뒤 위젯을 새로고침하세요. 전체를 한 번에 새로고침하려면 Rainmeter 관리 창 → **모두 새로고침(Refresh all)**을 누르면 됩니다.
 
 | 변수 | 기본값 | 설명 |
 |---|---|---|
@@ -100,15 +115,18 @@ Spotify 외에 Windows 미디어 정보를 제공하는 다른 플레이어도 �
 | `WarnThreshold` | `80` | CPU/RAM 경고색 기준(%) |
 | `WeekStart` | `Mon` | `Sun` = 일요일부터 시작 |
 | `ICalRefreshSeconds` | `900` | 캘린더 갱신 간격(초) |
+| `Theme` | `Brown` | 테마 파일 이름(`Themes\` 안) |
+| `BgAlpha` | `217` | 카드 불투명도 0~255 (178 = 70%, 217 = 85%, 255 = 100%) |
 | `Scale` | `1` | 전체 크기 배율(예: `1.15`). Windows 배율(125% 등)은 Rainmeter가 이미 반영하므로 보통은 그대로 두세요. |
 
 ### 테마 색 바꾸기
 
-색은 `@Resources\Themes\Brown.inc`에 있습니다. 형식은 `R,G,B,A`이고, A는 불투명도입니다(0 = 투명, 255 = 불투명).
+색은 `@Resources\Themes\<테마>.inc`에 있습니다. 형식은 `R,G,B,A`이고, A는 불투명도입니다(0 = 투명, 255 = 불투명).
+카드 배경만 예외로 `R,G,B`만 적습니다. 불투명도는 모든 테마에 공통으로 `BgAlpha`가 정합니다.
 
 ```ini
-; 카드 배경 (현재 85% 불투명)
-ColorBg=32,22,17,217
+; 카드 배경색 (R,G,B)
+ColorBgRGB=32,22,17
 ; 포인트 색 (오늘 날짜, 그래프, 버튼)
 ColorAccent=214,154,96,255
 ; 캘린더별 점 색
@@ -117,7 +135,10 @@ ColorCal1=214,154,96,255
 
 새 테마를 만들려면:
 1. `Brown.inc`를 복사해 `Themes\MyTheme.inc`처럼 저장하고 색을 바꿉니다.
-2. `Variables.inc`의 `Theme=Brown`을 `Theme=MyTheme`으로 바꿉니다.
+2. `Variables.inc`의 `ThemeList`에 이름을 추가합니다.
+   - 예: `ThemeList=Brown|Slate|Forest|MyTheme`
+   - Settings에는 최대 4개까지 표시됩니다.
+3. Settings 위젯에서 고르거나, `Theme=MyTheme`으로 직접 바꿉니다.
 
 ---
 
@@ -160,6 +181,7 @@ tools/            build-rmskin.ps1
   mklink /J "%USERPROFILE%\Documents\Rainmeter\Skins\Umber" "<저장소>\Umber"
   ```
   - ⚠️ 이렇게 연결된 PC에서는 `.rmskin`을 **설치하지 마세요.** 설치기가 기존 폴더(= junction)를 `@Backup`으로 옮겨 버립니다.
+  - Settings 위젯에서 값을 바꾸면 저장소의 `Variables.inc`가 직접 수정됩니다. 커밋하기 전에 diff를 확인하세요.
 - **패키지 빌드**: 아래 명령으로 `dist\Umber_0.1.0.rmskin`이 만들어집니다.
   ```bat
   powershell -ExecutionPolicy Bypass -File tools\build-rmskin.ps1 -Version 0.1.0
