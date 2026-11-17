@@ -1,45 +1,55 @@
 -- =============================================================
---  MyWindowWidget - Google Tasks controller
+--  MyWindowWidget - Google Tasks controller (Tasks\Tasks.ini)
 --  ENCODING: this file is saved as UTF-16 LE (with BOM) on purpose,
 --  like Calendar.lua. Rainmeter then runs it in Unicode mode, so
 --  task titles are UTF-8 inside Lua (Korean, emoji, ...).
 --
 --  Google is reached by @Resources\Scripts\GTasks.ps1, started in a
 --  hidden window by the RunCommand measure MeasureRun. The script
---  writes @Resources\Cache\tasks<Slot>.txt, OnDone() reads it. One
+--  writes @Resources\Cache\tasks.txt with every list and its open
+--  tasks (already sorted by due date); OnDone() reads it. One
 --  command runs at a time; the others wait in a queue.
 --
---  Files in @Resources\Cache (N = TasksSlot):
---    tasksN.txt  result of the last run (format: GTasks.ps1 header)
---    tasksN.sel  id of the list picked with < > (none = list N)
---    tasksN.new  title of the task being added (UTF-8), written
+--  Layout: the card is split into equal sections, one per list:
+--  1, 2 or 3 lists are all shown at once. With 4 or more, three
+--  sections are shown and < > in the header pages through them
+--  (the last page shows the last three lists).
+--
+--  Files in @Resources\Cache:
+--    tasks.txt   result of the last run (format: GTasks.ps1 header)
+--    tasks.page  page shown by < >
+--    tasks.new   title of the task being added (UTF-8), written
 --                right before the add command starts
 --
 --  Completing and adding show up at once (optimistic); the run that
 --  follows replaces them with what Google returns.
 --
---  Bangs (from the skin): Refresh(), PrevList(), NextList(),
---  Complete(row), Add(title), OnDone()
+--  Bangs (from the skin): Refresh(), PrevPage(), NextPage(),
+--  OpenAdd(section), Add(title), Complete(row), OnDone()
 -- =============================================================
 
-local MAX_ROWS = 10
-local BUSY_LIMIT = 90   -- seconds; RunCommand Timeout is 60
+local MAX_ROWS = 22         -- MeterCheck/Task/DueN in Tasks.ini
+local MAX_SECTIONS = 3      -- MeterSecName/More/AddN in Tasks.ini
+local BUSY_LIMIT = 90       -- seconds; RunCommand Timeout is 60
 local MONTHS = { 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec' }
 
 local cfg = {}
-local slot, rows, refreshEvery
-local lists, tasks = {}, {}
-local shownList             -- entry of `lists` shown by this slot
+local refreshEvery
+local lists = {}            -- { id, title, tasks = { {id, depth, due, title, pending} } }
 local status, detail = 'loading', ''
-local picked = ''           -- contents of tasksN.sel
+local page = 1
+local shown = {}            -- lists in the visible sections
+local secTop = {}           -- y of each visible section
+local rowMap = {}           -- row meter -> { list, index }
+local addList               -- id of the list the input box adds to
 local queue = {}
 local running               -- queue item being run, nil = idle
 local runSince = 0
 local lastFetch = 0
 local started = false
 local doneIds = {}          -- completed here, not yet confirmed
-local addTitles = {}        -- added here, not yet confirmed
+local adds = {}             -- { listId, title } added here, not yet confirmed
 
 -- ---- small helpers ------------------------------------------
 
@@ -62,7 +72,7 @@ local function show(meter, on)
 end
 
 local function cachePath(ext)
-  return var('@') .. 'Cache\\tasks' .. slot .. '.' .. ext
+  return var('@') .. 'Cache\\tasks.' .. ext
 end
 
 local function readFile(path)
@@ -92,10 +102,27 @@ local function split(line)
   return t
 end
 
+local function findList(id)
+  for _, l in ipairs(lists) do
+    if l.id == id then return l end
+  end
+  return nil
+end
+
+-- Where Google puts a new task once the list is sorted by due date:
+-- first among the top-level tasks without a due date.
+local function insertPending(l, title)
+  local at = #l.tasks + 1
+  for i, t in ipairs(l.tasks) do
+    if t.depth == 0 and t.due == '' then at = i; break end
+  end
+  table.insert(l.tasks, at, { id = '', depth = 0, due = '', title = title, pending = true })
+end
+
 -- ---- cache --------------------------------------------------
 
 local function loadCache()
-  lists, tasks, shownList = {}, {}, nil
+  lists = {}
   local s = readFile(cachePath('txt'))
   if not s then
     status, detail = 'loading', ''
@@ -106,16 +133,18 @@ local function loadCache()
     if f[1] == 'status' then
       status, detail = f[2] or 'error', f[3] or ''
     elseif f[1] == 'list' then
-      local l = { id = f[2], title = f[4] or '' }
-      lists[#lists + 1] = l
-      if f[3] == '1' then shownList = l end
-    elseif f[1] == 'task' and not doneIds[f[2]] then
-      tasks[#tasks + 1] = { id = f[2], depth = tonumber(f[3]) or 0, due = f[4] or '', title = f[5] or '' }
+      lists[#lists + 1] = { id = f[2], title = f[3] or '', tasks = {} }
+    elseif f[1] == 'task' and not doneIds[f[3]] then
+      local l = findList(f[2])
+      if l then
+        l.tasks[#l.tasks + 1] = { id = f[3], depth = tonumber(f[4]) or 0, due = f[5] or '', title = f[6] or '' }
+      end
     end
   end
-  -- Added here but not on Google yet: keep them at the top.
-  for i = #addTitles, 1, -1 do
-    table.insert(tasks, 1, { id = '', depth = 0, due = '', title = addTitles[i], pending = true })
+  -- Added here but not on Google yet.
+  for _, a in ipairs(adds) do
+    local l = findList(a.listId)
+    if l then insertPending(l, a.title) end
   end
 end
 
@@ -140,6 +169,12 @@ local function blocked()
   return status == 'setup' or status == 'auth'
 end
 
+local function pageCount()
+  if #lists <= MAX_SECTIONS then return 1 end
+  return math.ceil(#lists / MAX_SECTIONS)
+end
+
+-- Text in the middle of the card when no list can be shown.
 local function emptyText()
   if status == 'setup' then
     return 'Not connected. See README: Google Tasks.'
@@ -147,16 +182,13 @@ local function emptyText()
   if status == 'auth' then
     return 'Sign-in expired. Run the setup again (README: Google Tasks).'
   end
-  if #tasks > 0 then return '' end
-  if not shownList then
-    if status == 'offline' then return 'Offline' end
-    if status == 'error' then return 'Could not load the tasks.' end
-    return 'Loading…'
-  end
-  return 'No open tasks'
+  if #lists > 0 then return '' end
+  if status == 'offline' then return 'Offline' end
+  if status == 'error' then return 'Could not load the tasks.' end
+  return 'Loading…'
 end
 
-local function footText()
+local function statusText()
   if running then return 'Syncing…', cfg.secondary end
   if status == 'offline' then return 'Offline', cfg.warn end
   if status == 'error' then
@@ -164,43 +196,117 @@ local function footText()
     if #d > 32 then d = d:sub(1, 30) .. '…' end
     return d, cfg.warn
   end
-  if not blocked() and #tasks > rows then return '+' .. (#tasks - rows) .. ' more', cfg.secondary end
   return '', cfg.secondary
+end
+
+local function hideRow(i)
+  show('MeterCheck' .. i, false)
+  show('MeterTask' .. i, false)
+  show('MeterDue' .. i, false)
+end
+
+-- One task (or the "No open tasks" line when t is nil) in row
+-- meter i, centred on y.
+local function drawRow(i, t, y)
+  local chk, txt, due = 'MeterCheck' .. i, 'MeterTask' .. i, 'MeterDue' .. i
+  if not t then
+    set(txt, 'X', cfg.pad)
+    set(txt, 'Y', y)
+    set(txt, 'W', cfg.cardW - 2 * cfg.pad)
+    set(txt, 'Text', 'No open tasks')
+    set(txt, 'ToolTipText', '')
+    set(txt, 'FontColor', cfg.muted)
+    show(chk, false)
+    show(txt, true)
+    show(due, false)
+    return
+  end
+  local indent = (t.depth > 0) and cfg.indent or 0
+  local label, color = dueLabel(t.due)
+  local dueW = (label ~= '') and cfg.dueW or 0
+  set(chk, 'X', cfg.pad + indent)
+  set(chk, 'Y', y - cfg.ic / 2)
+  set(txt, 'X', cfg.pad + indent + cfg.ic + cfg.gap)
+  set(txt, 'Y', y)
+  set(txt, 'W', cfg.cardW - 2 * cfg.pad - indent - cfg.ic - cfg.gap - dueW)
+  set(txt, 'Text', t.title ~= '' and t.title or '(untitled)')
+  set(txt, 'ToolTipText', t.title)
+  set(txt, 'FontColor', t.pending and cfg.muted or cfg.primary)
+  set(due, 'Y', y)
+  set(due, 'Text', label)
+  set(due, 'FontColor', color)
+  show(chk, not t.pending)
+  show(txt, true)
+  show(due, label ~= '')
 end
 
 local function draw()
   local off = blocked()
+  local pages = pageCount()
+  page = math.max(1, math.min(page, pages))
 
-  set('MeterListName', 'Text', shownList and shownList.title or 'Google Tasks')
-  show('MeterPrev', not off and #lists > 1)
-  show('MeterNext', not off and #lists > 1)
+  -- Header: title, status, paging.
+  local paging = not off and pages > 1
+  show('MeterPrev', paging)
+  show('MeterNext', paging)
+  show('MeterPage', paging)
+  set('MeterPage', 'Text', page .. '/' .. pages)
+  local st, stColor = statusText()
+  set('MeterStatus', 'Text', st)
+  set('MeterStatus', 'FontColor', stColor)
+  set('MeterStatus', 'X', paging and (cfg.cardW - cfg.pad - 2 * cfg.ic - cfg.pageW - cfg.gap) or (cfg.cardW - cfg.pad))
 
-  for i = 1, MAX_ROWS do
-    local t = (not off and i <= rows) and tasks[i] or nil
-    local chk, txt, due = 'MeterCheck' .. i, 'MeterTask' .. i, 'MeterDue' .. i
-    if t then
-      local indent = (t.depth > 0) and cfg.indent or 0
-      local label, color = dueLabel(t.due)
-      local dueW = (label ~= '') and cfg.dueW or 0
-      set(chk, 'X', cfg.pad + indent)
-      set(txt, 'X', cfg.pad + indent + cfg.ic + cfg.gap)
-      set(txt, 'W', cfg.cardW - 2 * cfg.pad - indent - cfg.ic - cfg.gap - dueW)
-      set(txt, 'Text', t.title ~= '' and t.title or '(untitled)')
-      set(txt, 'ToolTipText', t.title)
-      set(txt, 'FontColor', t.pending and cfg.muted or cfg.primary)
-      set(due, 'Text', label)
-      set(due, 'FontColor', color)
-    end
-    show(chk, t ~= nil)
-    show(txt, t ~= nil)
-    show(due, t ~= nil)
+  -- Which lists are visible.
+  shown = {}
+  if not off then
+    local k = math.min(#lists, MAX_SECTIONS)
+    local first = math.max(1, math.min((page - 1) * MAX_SECTIONS + 1, #lists - k + 1))
+    for s = 1, k do shown[s] = lists[first + s - 1] end
   end
 
-  set('MeterEmpty', 'Text', emptyText())
-  local foot, footColor = footText()
-  set('MeterStatus', 'Text', foot)
-  set('MeterStatus', 'FontColor', footColor)
-  show('MeterAdd', not off and shownList ~= nil)
+  -- Equal sections over the body.
+  local k = #shown
+  local secH = k > 0 and (cfg.bodyH - (k - 1) * cfg.gap) / k or 0
+  local row = 0
+  rowMap = {}
+  for s = 1, MAX_SECTIONS do
+    local l = shown[s]
+    local name, more, add, sep = 'MeterSecName' .. s, 'MeterSecMore' .. s, 'MeterSecAdd' .. s, 'MeterSecSep' .. s
+    if l then
+      local top = math.floor(cfg.bodyY + (s - 1) * (secH + cfg.gap) + 0.5)
+      secTop[s] = top
+      local headMid = top + cfg.secHeadH / 2
+      set(name, 'Y', headMid)
+      set(name, 'Text', l.title ~= '' and l.title or '(untitled list)')
+      set(add, 'Y', headMid - cfg.ic / 2)
+      set(more, 'Y', headMid)
+      if s > 1 then set(sep, 'Y', math.floor(top - cfg.gap / 2)) end
+
+      local fit = math.max(1, math.floor((secH - cfg.secHeadH) / cfg.rowH))
+      local n = #l.tasks
+      if n == 0 then
+        if row < MAX_ROWS then
+          row = row + 1
+          drawRow(row, nil, top + cfg.secHeadH + cfg.rowH / 2)
+        end
+      else
+        for i = 1, math.min(n, fit) do
+          if row >= MAX_ROWS then break end
+          row = row + 1
+          rowMap[row] = { list = l, index = i }
+          drawRow(row, l.tasks[i], top + cfg.secHeadH + (i - 0.5) * cfg.rowH)
+        end
+      end
+      set(more, 'Text', n > fit and ('+' .. (n - fit) .. ' more') or '')
+    end
+    show(name, l ~= nil)
+    show(more, l ~= nil)
+    show(add, l ~= nil)
+    if s > 1 then show(sep, l ~= nil) end
+  end
+  for i = row + 1, MAX_ROWS do hideRow(i) end
+
+  set('MeterEmpty', 'Text', k == 0 and emptyText() or '')
 
   SKIN:Bang('!UpdateMeterGroup', 'Tasks')
   SKIN:Bang('!Redraw')
@@ -210,7 +316,7 @@ end
 
 local function command(action, listId, extra)
   local s = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "'
-    .. var('@') .. 'Scripts\\GTasks.ps1" -Action ' .. action .. ' -Slot ' .. slot
+    .. var('@') .. 'Scripts\\GTasks.ps1" -Action ' .. action
   if safeId(listId) then s = s .. ' -ListId ' .. listId end
   return s .. (extra or '')
 end
@@ -243,34 +349,32 @@ local function enqueue(item)
 end
 
 local function fetch()
-  enqueue { cmd = command('fetch', picked), fetch = true }
-end
-
--- The list the shown tasks belong to (complete / add go there).
-local function shownId()
-  return shownList and shownList.id or picked
+  enqueue { cmd = command('fetch'), fetch = true }
 end
 
 -- ---- Rainmeter entry points ----------------------------------
 
 function Initialize()
-  slot = math.floor(tonumber(var('TasksSlot', '1')) or 1)
-  rows = math.max(1, math.min(MAX_ROWS, math.floor(num('TasksRows'))))
   refreshEvery = math.max(60, tonumber(var('TasksRefreshSeconds', '300')) or 300)
-  cfg.pad    = num('Pad')
-  cfg.gap    = num('Gap')
-  cfg.ic     = num('Ic')
-  cfg.indent = num('TaskIndent')
-  cfg.dueW   = num('DueW')
-  cfg.cardW  = num('CardW')
+  cfg.scale    = num('Scale')
+  cfg.pad      = num('Pad')
+  cfg.gap      = num('Gap')
+  cfg.ic       = num('Ic')
+  cfg.indent   = num('TaskIndent')
+  cfg.dueW     = num('DueW')
+  cfg.pageW    = num('PageW')
+  cfg.rowH     = num('RowH')
+  cfg.secHeadH = num('SecHeadH')
+  cfg.cardW    = num('CardW')
+  cfg.bodyY    = num('BodyY')
+  cfg.bodyH    = num('CardH') - cfg.pad - cfg.bodyY
   cfg.primary   = var('ColorTextPrimary')
   cfg.secondary = var('ColorTextSecondary')
   cfg.muted     = var('ColorTextMuted')
   cfg.accent    = var('ColorAccent')
   cfg.warn      = var('ColorWarn')
 
-  picked = trim(readFile(cachePath('sel')))
-  if not safeId(picked) then picked = '' end
+  page = math.floor(tonumber(trim(readFile(cachePath('page')))) or 1)
   loadCache()
 end
 
@@ -298,7 +402,7 @@ function OnDone()
   local item = running
   running = nil
   if item and item.doneId then doneIds[item.doneId] = nil end
-  if item and item.title then table.remove(addTitles, 1) end
+  if item and item.title then table.remove(adds, 1) end
   loadCache()
   if #queue > 0 then start(table.remove(queue, 1)) end
   draw()
@@ -309,39 +413,43 @@ function Refresh()
   draw()
 end
 
-local function pickList(step)
-  if #lists < 2 then return end
-  local idx = 1
-  for i, l in ipairs(lists) do
-    if shownList and l.id == shownList.id then idx = i end
-  end
-  idx = (idx - 1 + step) % #lists + 1
-  shownList = lists[idx]
-  picked = shownList.id
-  writeFile(cachePath('sel'), picked)
-  tasks = {}
-  status = 'loading'
-  fetch()
+local function turnPage(step)
+  local pages = pageCount()
+  if pages < 2 then return end
+  page = (page - 1 + step) % pages + 1
+  writeFile(cachePath('page'), tostring(page))
   draw()
 end
 
-function PrevList() pickList(-1) end
-function NextList() pickList(1) end
+function PrevPage() turnPage(-1) end
+function NextPage() turnPage(1) end
 
-function Complete(row)
-  local t = tasks[row]
-  if blocked() or not t or t.pending or not safeId(t.id) then return end
-  doneIds[t.id] = true
-  table.remove(tasks, row)
-  enqueue { cmd = command('complete', shownId(), ' -TaskId ' .. t.id), doneId = t.id }
-  draw()
+-- "+" in a section header: the input box covers that header row.
+function OpenAdd(s)
+  local l = shown[s]
+  if blocked() or not l then return end
+  addList = l.id
+  set('MeasureTaskInput', 'Y', secTop[s] + 2 * cfg.scale)
+  SKIN:Bang('!UpdateMeasure', 'MeasureTaskInput')
+  SKIN:Bang('!CommandMeasure', 'MeasureTaskInput', 'ExecuteBatch 1')
 end
 
 function Add(title)
   title = trim((title or ''):gsub('[\r\n\t]+', ' '))
-  if title == '' or blocked() or not shownList then return end
-  addTitles[#addTitles + 1] = title
-  table.insert(tasks, 1, { id = '', depth = 0, due = '', title = title, pending = true })
-  enqueue { cmd = command('add', shownId()), title = title }
+  local l = addList and findList(addList)
+  if title == '' or blocked() or not l then return end
+  adds[#adds + 1] = { listId = l.id, title = title }
+  insertPending(l, title)
+  enqueue { cmd = command('add', l.id), title = title }
+  draw()
+end
+
+function Complete(row)
+  local m = rowMap[row]
+  local t = m and m.list.tasks[m.index]
+  if blocked() or not t or t.pending or not safeId(t.id) then return end
+  doneIds[t.id] = true
+  table.remove(m.list.tasks, m.index)
+  enqueue { cmd = command('complete', m.list.id, ' -TaskId ' .. t.id), doneId = t.id }
   draw()
 end

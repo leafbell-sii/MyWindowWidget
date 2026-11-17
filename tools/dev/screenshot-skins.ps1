@@ -11,13 +11,12 @@
 .EXAMPLE
   .\tools\dev\screenshot-skins.ps1 -Skin Calendar -Out $env:TEMP\cal.png
   .\tools\dev\screenshot-skins.ps1 -Out $env:TEMP\all.png
-  .\tools\dev\screenshot-skins.ps1 -Skin Tasks\List1 -Out $env:TEMP\tasks.png
+  .\tools\dev\screenshot-skins.ps1 -Skin Tasks -Out $env:TEMP\tasks.png
 #>
 param(
   [string]$Skin = '',
   [Parameter(Mandatory = $true)][string]$Out,
-  [string[]]$Configs = @('Clock', 'System', 'Network', 'Music', 'Calendar', 'Settings',
-                        'Tasks\List1', 'Tasks\List2', 'Tasks\List3', 'Tasks\List4'),
+  [string[]]$Configs = @('Clock', 'System', 'Network', 'Music', 'Calendar', 'Settings', 'Tasks'),
   [string]$Suite = 'MyWindowWidget'
 )
 
@@ -54,8 +53,8 @@ foreach ($c in $Configs) { & $rm !ZPos 2 "$Suite\$c" }
 Start-Sleep -Seconds 2
 try {
   if ($Skin) {
-    # Config X has X.ini; the Tasks slots (Tasks\ListN) share Tasks.ini.
-    $ini = if ($Skin -like 'Tasks\*') { 'Tasks.ini' } else { (Split-Path $Skin -Leaf) + '.ini' }
+    # Config X has X.ini.
+    $ini = (Split-Path $Skin -Leaf) + '.ini'
     $r = [SkinShot]::Find("$Suite\$Skin\$ini")
     if (-not $r) { throw "Skin window not found: $Suite\$Skin" }
     $x, $y, $w, $h = ($r[0] - 10), ($r[1] - 10), ($r[2] + 20), ($r[3] + 20)

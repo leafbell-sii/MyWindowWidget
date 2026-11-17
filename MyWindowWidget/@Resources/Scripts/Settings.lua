@@ -9,8 +9,12 @@
 --  each @Resources\Themes\<Name>.inc listed in ThemeList, so a
 --  new theme only needs its file and a ThemeList entry.
 --
+--  Folding (SettingsCollapsed) hides meter group Body and its
+--  container MeterBody and shrinks CardH to the title row. It is
+--  saved too, but needs no refresh.
+--
 --  Bangs: SetTheme(i), SetAlpha(a), Toggle('Use24h'|'ShowSeconds'),
---         SetWeekStart('Mon'|'Sun')
+--         SetWeekStart('Mon'|'Sun'), ToggleFold()
 -- =============================================================
 
 local MAX_THEMES = 8   -- two rows of four swatches in Settings.ini
@@ -19,6 +23,7 @@ local ALPHAS = { 178, 217, 255 }   -- 70% / 85% / 100%
 local themes = {}
 local c = {}       -- colours
 local g = {}       -- geometry
+local folded = false
 
 local function var(name, default) return SKIN:GetVariable(name, default or '') end
 local function num(name)
@@ -106,6 +111,24 @@ local function draw()
   SKIN:Bang('!Redraw')
 end
 
+-- Open: show Body (the swatches of missing themes stay hidden).
+local function applyFold()
+  SKIN:Bang('!SetVariable', 'CardH', tostring(folded and g.cardHFolded or g.cardHOpen))
+  set('MeterFold', 'Shape2', folded and 'Path FoldDown | Extend FoldStroke' or 'Path FoldUp | Extend FoldStroke')
+  set('MeterFold', 'ToolTipText', folded and 'Unfold' or 'Fold')
+  -- Hiding the container is what shrinks the window (Settings.ini).
+  if folded then
+    SKIN:Bang('!HideMeterGroup', 'Body')
+    SKIN:Bang('!HideMeter', 'MeterBody')
+  else
+    SKIN:Bang('!ShowMeter', 'MeterBody')
+    SKIN:Bang('!ShowMeterGroup', 'Body')
+    draw()
+  end
+  SKIN:Bang('!UpdateMeter', '*')
+  SKIN:Bang('!Redraw')
+end
+
 local function write(key, value)
   SKIN:Bang('!WriteKeyValue', 'Variables', key, tostring(value), var('@') .. 'Variables.inc')
 end
@@ -129,6 +152,9 @@ function Initialize()
   g.pillH = num('PillH')
   g.trackW = num('TrackW')
   g.trackH = num('TrackH')
+  g.cardHOpen = num('CardHOpen')
+  g.cardHFolded = num('CardHFolded')
+  folded = var('SettingsCollapsed', '0') == '1'
 
   themes = {}
   for name in var('ThemeList', 'Brown'):gmatch('[^|]+') do
@@ -145,8 +171,15 @@ function Update()
   if not started then
     started = true
     draw()
+    applyFold()
   end
   return 0
+end
+
+function ToggleFold()
+  folded = not folded
+  write('SettingsCollapsed', folded and 1 or 0)
+  applyFold()
 end
 
 function SetTheme(i)

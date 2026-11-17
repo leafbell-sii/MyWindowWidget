@@ -3,10 +3,9 @@
   Google Tasks helper for the MyWindowWidget Tasks skins.
 
 .DESCRIPTION
-  The Tasks skins start this script through the RunCommand plugin
-  (hidden window) and read the result from
-  @Resources\Cache\tasks<Slot>.txt. Nothing is written to STDOUT for
-  the skin.
+  The Tasks skin starts this script through the RunCommand plugin
+  (hidden window) and reads the result from @Resources\Cache\tasks.txt.
+  Nothing is written to STDOUT for the skin.
 
   Google Tasks does not accept API keys: every request needs an OAuth
   2.0 access token (scope .../auth/tasks). This script uses the
@@ -21,22 +20,20 @@
               The JSON file can be deleted afterwards.
     signout   Revokes the refresh token at Google, deletes the stored
               credential and the Tasks caches.
-    fetch     Writes the task lists and the open tasks of one list.
-    add       Adds the title in Cache\tasks<Slot>.new (UTF-8, written by
-              Tasks.lua) at the top of the list, then fetches.
-    complete  Marks -TaskId as completed, then fetches.
-
-  The list shown by a slot is -ListId. When it is empty or no longer
-  exists, slot N shows the N-th list (wrapping around).
+    fetch     Writes all task lists and the open tasks of each.
+    add       Adds the title in Cache\tasks.new (UTF-8, written by
+              Tasks.lua) to list -ListId, then fetches.
+    complete  Marks -TaskId of list -ListId as completed, then fetches.
 
   Cache file (UTF-8 without BOM, tab separated, one record per line):
     status   <ok|setup|auth|offline|error>  <detail>
     updated  <yyyy-MM-dd HH:mm>           last successful fetch
-    list     <id>  <1 = shown in this slot, else 0>  <title>
-    task     <id>  <depth 0|1>  <due yyyy-MM-dd or empty>  <title>
-  Tasks are in Google's order: top-level tasks by position, each
-  followed by its subtasks. On a failed fetch only the status line
-  changes, so the skin keeps showing the last good data.
+    list     <id>  <title>                     in Google's order
+    task     <list id>  <id>  <depth 0|1>  <due yyyy-MM-dd or empty>  <title>
+  Tasks are sorted by due date (earliest first, no due date last;
+  ties keep Google's order). Each top-level task is followed by its
+  subtasks, sorted the same way. On a failed fetch only the status
+  line changes, so the skin keeps showing the last good data.
 
   Secrets (client secret, refresh / access tokens) never go to STDOUT,
   the cache files or the Rainmeter log.
@@ -47,8 +44,6 @@
 param(
   [ValidateSet('setup', 'signout', 'fetch', 'add', 'complete')]
   [string]$Action = 'fetch',
-  [ValidateRange(1, 99)]
-  [int]$Slot = 1,
   [string]$ListId = '',
   [string]$TaskId = '',
   [string]$ClientSecretFile = ''
@@ -71,8 +66,8 @@ $StoreDir  = Join-Path $env:LOCALAPPDATA 'MyWindowWidget\GoogleTasks'
 $CredFile  = Join-Path $StoreDir 'credential.bin'
 $TokenFile = Join-Path $StoreDir 'access.bin'
 $CacheDir  = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Cache'))
-$OutFile   = Join-Path $CacheDir "tasks$Slot.txt"
-$NewFile   = Join-Path $CacheDir "tasks$Slot.new"
+$OutFile   = Join-Path $CacheDir 'tasks.txt'
+$NewFile   = Join-Path $CacheDir 'tasks.new'
 $Utf8      = New-Object Text.UTF8Encoding $false
 $Entropy   = [Text.Encoding]::ASCII.GetBytes('MyWindowWidget.GoogleTasks')
 # Google list / task ids are URL-safe base64. Anything else is refused,
@@ -368,14 +363,13 @@ function Invoke-Setup {
   $lists = Get-AllItems '/users/@me/lists?maxResults=100'
   Write-Host ''
   Write-Host ("Connected. {0} task list(s):" -f $lists.Count)
-  $n = 1
-  foreach ($l in $lists) { Write-Host ("  Tasks\List{0}: {1}" -f $n, $l.title); $n++ }
+  foreach ($l in $lists) { Write-Host ('  ' + $l.title) }
   Write-Host ''
-  Write-Host 'Widget slot ListN shows list N by default; < > on a widget picks another list.'
+  Write-Host 'The Tasks card shows up to three lists at once; < > pages through more.'
   Write-Host 'The credential is stored encrypted for this Windows user in:'
   Write-Host "  $StoreDir"
   Write-Host 'You can now delete the downloaded client secret JSON file.'
-  Write-Host 'Click a Tasks widget title (or wait a few minutes) to load the tasks.'
+  Write-Host 'Click the Tasks card title (or wait a few minutes) to load the tasks.'
 }
 
 function Invoke-Signout {
@@ -397,73 +391,82 @@ function Invoke-Signout {
 if ($Action -eq 'setup') { Invoke-Setup; exit 0 }
 if ($Action -eq 'signout') { Invoke-Signout; exit 0 }
 
+# Due date first (no due date last), then Google's position.
+function Get-Sorted($Items) {
+  , @($Items | Sort-Object @{ Expression = { if (Get-DueDate $_.due) { 0 } else { 1 } } },
+                           @{ Expression = { Get-DueDate $_.due } },
+                           @{ Expression = { [string]$_.position } })
+}
+
 try {
   if ($ListId -notmatch $IdPattern) { $ListId = '' }
 
   $lists = Get-AllItems '/users/@me/lists?maxResults=100'
   if ($lists.Count -eq 0) { Fail 'error' 'No task lists' }
-  $shown = $null
-  if ($ListId) { $shown = $lists | Where-Object { $_.id -eq $ListId } | Select-Object -First 1 }
-  if (-not $shown) { $shown = $lists[($Slot - 1) % $lists.Count] }
-  $listPath = '/lists/' + (Get-EscapedId $shown.id) + '/tasks'
 
-  # A failed change still fetches, so the list on screen is the truth.
+  # A failed change still fetches, so the lists on screen are the truth.
   $note = ''
-  if ($Action -eq 'add' -and (Test-Path -LiteralPath $NewFile)) {
-    $title = Get-Clean ([IO.File]::ReadAllText($NewFile, $Utf8))
-    if ($title.Length -gt 1024) { $title = $title.Substring(0, 1024) }
-    if ($title) {
-      try {
-        Invoke-Api 'Post' $listPath @{ title = $title } | Out-Null
-        Remove-Item -LiteralPath $NewFile -Force
-      } catch {
-        if ((Get-ErrorCode $_) -ne 'error') { throw }
-        $note = 'Could not add the task'
+  if ($Action -in 'add', 'complete') {
+    $target = $null
+    if ($ListId) { $target = $lists | Where-Object { $_.id -eq $ListId } | Select-Object -First 1 }
+    $listPath = if ($target) { '/lists/' + (Get-EscapedId $target.id) + '/tasks' } else { '' }
+    if ($Action -eq 'add' -and (Test-Path -LiteralPath $NewFile)) {
+      $title = Get-Clean ([IO.File]::ReadAllText($NewFile, $Utf8))
+      if ($title.Length -gt 1024) { $title = $title.Substring(0, 1024) }
+      if (-not $listPath) {
+        $note = 'Unknown list'
+      } elseif ($title) {
+        try {
+          Invoke-Api 'Post' $listPath @{ title = $title } | Out-Null
+        } catch {
+          if ((Get-ErrorCode $_) -ne 'error') { throw }
+          $note = 'Could not add the task'
+        }
       }
-    } else {
       Remove-Item -LiteralPath $NewFile -Force
-    }
-  } elseif ($Action -eq 'complete') {
-    if ($TaskId -notmatch $IdPattern) {
-      $note = 'Unknown task'
-    } else {
-      try {
-        Invoke-Api 'Patch' ($listPath + '/' + $TaskId) @{ status = 'completed' } | Out-Null
-      } catch {
-        if ((Get-ErrorCode $_) -ne 'error') { throw }
-        $note = 'Could not complete the task'
+    } elseif ($Action -eq 'complete') {
+      if (-not $listPath -or $TaskId -notmatch $IdPattern) {
+        $note = 'Unknown task'
+      } else {
+        try {
+          Invoke-Api 'Patch' ($listPath + '/' + $TaskId) @{ status = 'completed' } | Out-Null
+        } catch {
+          if ((Get-ErrorCode $_) -ne 'error') { throw }
+          $note = 'Could not complete the task'
+        }
       }
-    }
-  }
-
-  $all = Get-AllItems ($listPath + '?showCompleted=false&showHidden=false&maxResults=100')
-  $all = @($all | Where-Object { $_.status -ne 'completed' -and -not $_.deleted })
-  $ids = @{}
-  foreach ($t in $all) { $ids[[string]$t.id] = $true }
-  $children = @{}
-  $top = New-Object System.Collections.ArrayList
-  foreach ($t in ($all | Sort-Object { [string]$_.position })) {
-    $p = [string]$t.parent
-    if ($p -and $ids.ContainsKey($p)) {
-      if (-not $children.ContainsKey($p)) { $children[$p] = New-Object System.Collections.ArrayList }
-      [void]$children[$p].Add($t)
-    } else {
-      [void]$top.Add($t)
     }
   }
 
   $lines = New-Object System.Collections.Generic.List[string]
   if ($note) { $lines.Add("status`terror`t$note") } else { $lines.Add("status`tok`t") }
   $lines.Add("updated`t" + (Get-Date -Format 'yyyy-MM-dd HH:mm'))
+  foreach ($l in $lists) { $lines.Add("list`t$($l.id)`t$(Get-Clean $l.title)") }
+
   foreach ($l in $lists) {
-    $flag = if ($l.id -eq $shown.id) { '1' } else { '0' }
-    $lines.Add("list`t$($l.id)`t$flag`t$(Get-Clean $l.title)")
-  }
-  foreach ($t in $top) {
-    $lines.Add("task`t$($t.id)`t0`t$(Get-DueDate $t.due)`t$(Get-Clean $t.title)")
-    if ($children.ContainsKey([string]$t.id)) {
-      foreach ($c in $children[[string]$t.id]) {
-        $lines.Add("task`t$($c.id)`t1`t$(Get-DueDate $c.due)`t$(Get-Clean $c.title)")
+    $path = '/lists/' + (Get-EscapedId $l.id) + '/tasks?showCompleted=false&showHidden=false&maxResults=100'
+    # Assign first: Get-AllItems returns the array as one pipeline object.
+    $all = Get-AllItems $path
+    $all = @($all | Where-Object { $_.status -ne 'completed' -and -not $_.deleted })
+    $ids = @{}
+    foreach ($t in $all) { $ids[[string]$t.id] = $true }
+    $children = @{}
+    $top = New-Object System.Collections.ArrayList
+    foreach ($t in $all) {
+      $p = [string]$t.parent
+      if ($p -and $ids.ContainsKey($p)) {
+        if (-not $children.ContainsKey($p)) { $children[$p] = New-Object System.Collections.ArrayList }
+        [void]$children[$p].Add($t)
+      } else {
+        [void]$top.Add($t)
+      }
+    }
+    foreach ($t in (Get-Sorted $top)) {
+      $lines.Add("task`t$($l.id)`t$($t.id)`t0`t$(Get-DueDate $t.due)`t$(Get-Clean $t.title)")
+      if ($children.ContainsKey([string]$t.id)) {
+        foreach ($c in (Get-Sorted $children[[string]$t.id])) {
+          $lines.Add("task`t$($l.id)`t$($c.id)`t1`t$(Get-DueDate $c.due)`t$(Get-Clean $c.title)")
+        }
       }
     }
   }

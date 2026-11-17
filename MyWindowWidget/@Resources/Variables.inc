@@ -108,8 +108,14 @@ IconStrokeW=(1.5*#Scale#)
 PlayButtonSize=(30*#Scale#)
 ; Calendar card
 CalendarWidth=(280*#Scale#)
-; Tasks cards (Tasks\List1..4)
-TasksWidth=(280*#Scale#)
+; Calendar card height in pixels, also used by the Tasks card so
+; both are the same height. It is the Calendar layout written out
+; (see Calendar.ini [Variables]): 323 px of padding, grid and list
+; rows plus three text lines (FontSizeL + 2 x FontSizeS) at the
+; Calendar's own scale. Change it together with that layout.
+CalendarHeight=(#SuiteScale#*#CalendarScale#*(323+1.78*(16+9+9)*#FontScale#))
+; Tasks card (as tall as the Calendar, as wide as System/Network)
+TasksWidth=(300*#Scale#)
 
 ; ---- Behaviour ----------------------------------------------
 ; Values at or above this percent turn ColorWarn (System skin).
@@ -128,14 +134,15 @@ LocalTZID=Asia/Seoul
 ; Calendar: how often to re-download the iCal feeds, in seconds
 ; (Google's feed itself can lag minutes to hours).
 ICalRefreshSeconds=900
-; Tasks: task rows per card (1-10; more tasks show "+N more")
-TasksRows=8
 ; Tasks: how often to re-read Google Tasks, in seconds (min 60).
-; Adding / completing / clicking the list name syncs at once.
+; Adding / completing / clicking the TASKS title syncs at once.
 TasksRefreshSeconds=300
 ; Tasks: font of the "Add task" text box. The box can only use
 ; fonts installed in Windows, not the bundled @Resources\Fonts.
 InputFontFace=Segoe UI
+; Settings: 1 = folded (only the title and the fold button show).
+; The Settings skin writes this.
+SettingsCollapsed=0
 
 ; ---- Internal (used by the shared styles) -------------------
 BgFill=#ColorBg#

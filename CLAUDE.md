@@ -31,12 +31,10 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
     Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy) + *-OFL.txt
     Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
-    Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasksN.*) - git 제외
+    Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasks.*) - git 제외
     Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings, Tasks
                              GTasks.ps1 (Google Tasks OAuth/API, RunCommand로 실행)
-    TasksSkin.inc            Tasks 카드 본체 (Tasks\ListN\Tasks.ini가 TasksSlot=N 뒤에 include)
-  Clock/ System/ Network/ Music/ Calendar/ Settings/   스킨 (.ini 하나씩)
-  Tasks/List1..4/Tasks.ini   Google Tasks 슬롯 (목록마다 카드 하나)
+  Clock/ System/ Network/ Music/ Calendar/ Settings/ Tasks/   스킨 (.ini 하나씩)
 vendor/WebNowPlaying/        플러그인 DLL 32/64bit (v3.0.0-alpha.5, sha256은 SOURCE.md)
 tools/build-rmskin.ps1       dist/MyWindowWidget_<버전>.rmskin 생성
 tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
@@ -90,6 +88,8 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **`Substitute`에 빈 문자열과 매치될 수 있는 패턴을 쓰면 Rainmeter가 무한 루프로 멈춥니다.**
   - 예: `"^0?$":""` (실제로 겪어서 강제 종료한 적 있음)
 - **Hidden 미터도 업데이트됩니다.** Image 미터는 숨겨져 있어도 이미지를 로드하려고 합니다.
+- **Hidden 미터도 `DynamicWindowSize` 창 크기에 Y 위치만큼 영향을 줍니다**(높이는 0으로 계산, 2026-11-17 확인).
+  - 그래서 미터를 숨겨서 카드를 줄이려면 그 미터들을 컨테이너에 넣고 컨테이너를 숨깁니다(Settings 접기의 `MeterBody`).
 - **WebNowPlaying `Cover`**: 커버가 없으면 문자열 대신 `"0"`을 돌려줍니다. 그래서 `MeasureCoverPath`로 `^0$`를 빈 값으로 바꿔 씁니다.
 - **`!WriteKeyValue`는 없는 파일을 만들지 못합니다.**
 - **`!DeactivateConfig`·`!Refresh`·`!Move`·`!CommandMeasure`를 로드되지 않은 스킨에 쓰면 로그에 오류나 경고가 남습니다.**
@@ -139,14 +139,22 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
   - 클라이언트 ID·비밀·refresh token은 DPAPI(CurrentUser)로 암호화해 `%LOCALAPPDATA%\MyWindowWidget\GoogleTasks`에 둡니다(저장소·패키지 밖).
   - 동의 화면이 Testing 상태면 refresh token이 7일 뒤 만료됩니다. README에서 In production 전환을 안내합니다.
   - HTTP는 내장 RunCommand 플러그인 + Windows PowerShell 5.1로 합니다(WebParser는 POST/PATCH 불가). 추가 입력은 내장 InputText입니다.
-  - 결과는 `Cache\tasksN.txt`(형식은 GTasks.ps1 머리말), 고른 목록은 `tasksN.sel`, 추가할 제목은 `tasksN.new`입니다. 명령줄에는 검증한 id만 넣고, 제목은 파일로 넘깁니다.
-  - 카드는 config 4개(`List1..4`)로 고정입니다. 추가·완료만 지원합니다(수정·삭제·완료 취소 없음).
+  - fetch 한 번에 모든 목록을 받습니다. 결과는 `Cache\tasks.txt`(형식은 GTasks.ps1 머리말), 보던 쪽은 `tasks.page`, 추가할 제목은 `tasks.new`입니다. 명령줄에는 검증한 id만 넣고, 제목은 파일로 넘깁니다.
+  - 정렬은 GTasks.ps1에서 합니다: 마감일 빠른 순, 마감일 없음은 뒤, 같으면 구글 position. 하위 할 일은 상위 아래에서 같은 규칙.
+  - 카드는 config 하나(`Tasks`)입니다(2026-11-17 개편, 그전에는 목록마다 config `List1..4`).
+    - 높이는 `CalendarHeight`입니다. Calendar의 CardH를 식으로 풀어 Variables.inc에 두고 두 스킨이 같이 씁니다. Calendar 레이아웃을 바꾸면 이 식도 바꿉니다.
+    - 폭은 System/Network와 같은 300, 글자 배율은 1(Calendar처럼 1.5배가 아님)입니다.
+    - 목록 1~3개는 같은 높이의 구역으로 나누고, 4개 이상이면 3구역 + `< >` 페이지입니다(마지막 쪽은 마지막 3개). 줄 미터 22개와 구역 미터 3벌을 Lua가 배치합니다.
+    - 추가 입력창은 Lua가 `!SetOption MeasureTaskInput Y`로 구역 머리줄 위로 옮긴 뒤 엽니다.
+  - 추가·완료만 지원합니다(수정·삭제·완료 취소 없음).
+- **Settings 접기**: `SettingsCollapsed`(Variables.inc)에 저장합니다. 새로고침 없이 Lua가 `CardH`, 컨테이너 `MeterBody`, `Body` 그룹을 바꿉니다.
 - **라이선스**: MIT (© 2026 leafbell-sii). WebNowPlaying(MIT) 고지는 패키지에 함께 넣습니다.
 
 ## 남은 일 / 아이디어
 
 - `.rmskin` **실제 설치 테스트**: 다른 PC, 또는 junction을 해제한 상태에서 해야 합니다.
-- **Tasks 미검증 항목**: 입력창(InputText)이 열린 모양과 위치(DPI 재정의 환경)는 아직 확인하지 못했습니다.
+- **Tasks 미검증 항목**: 입력창(InputText)이 열린 모양과 위치(DPI 재정의 환경, `!SetOption Y`로 구역마다 옮기는 것 포함)는 아직 확인하지 못했습니다.
+  - 단일 카드 개편 후(2026-11-17) 확인한 것: 실제 계정 fetch와 정렬, 2구역 표시, 가짜 캐시로 5개 목록 페이지 전환·`+N more`·하위 할 일. 추가·완료는 개편 후 다시 해 보지 않았습니다.
   - 실제 계정으로 확인한 것(2026-11-17): setup, 조회(목록 2개), bang 경로로 한글·따옴표 제목 추가 → 완료, 목록 전환. 로그 오류 없음.
   - 키 입력을 흉내 내는 테스트(SendKeys)는 쓰지 않습니다. 포커스가 다른 창에 있으면 사용자 창에 입력됩니다.
 - **Music 미검증 항목**: 재생 중일 때 일시정지 아이콘 전환과 진행 바 클릭 탐색은 아직 확인하지 못했습니다(일시정지 상태 표시는 확인함).
