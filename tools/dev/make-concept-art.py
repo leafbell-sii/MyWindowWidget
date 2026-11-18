@@ -1,10 +1,10 @@
-"""Generates the card art used by the concept themes (Christmas, Cafe).
+"""Generates the card art used by the concept themes (Christmas, Cafe, Sunset).
 
 Writes into MyWindowWidget/@Resources/Images/<Theme>/:
   Texture.png  seamless tile, transparent with soft detail. Drawn over the
                card colour (ColorBg) so opacity / hover keep working.
   Trim.png     horizontal tile for the top edge of the card (string lights,
-               cafe awning). Its height must match CardTrimH in the theme.
+               cafe awning, power lines). Its height must match CardTrimH in the theme.
 
 Everything is drawn at SS x size and downsampled for anti-aliasing.
 Seeded, so re-running gives the same files.
@@ -170,8 +170,110 @@ def cafe_trim(path):
     finish(Image.alpha_composite(shadow, img), path)
 
 
+# ---------------------------------------------------------------- Sunset
+
+SUN_GLOW = (255, 168, 82)
+
+
+def leaf(size, ang, col):
+    """A small leaf silhouette (pointed ellipse with a stem), rotated."""
+    w, h = int(size * 1.6), int(size * 1.6)
+    im = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    cx, cy, L, Wd = w / 2, h / 2, size * 0.62, size * 0.26
+    pts = []
+    for k in range(41):
+        u = k / 40
+        pts.append((cx - L + 2 * L * u, cy - Wd * math.sin(math.pi * u)))
+    for k in range(41):
+        u = 1 - k / 40
+        pts.append((cx - L + 2 * L * u, cy + Wd * math.sin(math.pi * u)))
+    d.polygon(pts, fill=col)
+    d.line([(cx + L, cy), (cx + L + size * 0.16, cy + size * 0.06)], fill=col, width=max(1, int(size * 0.05)))
+    return im.rotate(ang, resample=Image.BICUBIC)
+
+
+def sunset_texture(path):
+    # Backlit dusk: a warm glow falling in from the top edge, soft bokeh
+    # orbs and a few drifting leaves. The glow only varies with y, so the
+    # tile is seamless across; it is taller than any card (no repeat down).
+    W, H = 420, 1200
+    img = canvas(W, H)
+    glow_h = 230
+    # Vertical glow, written row by row (cheap at SS resolution).
+    row = Image.new('RGBA', (W * SS, 1))
+    for y in range(glow_h * SS):
+        u = y / (glow_h * SS)
+        a = int(78 * (1 - u) ** 2.2)
+        row.paste(SUN_GLOW + (a,), (0, 0, W * SS, 1))
+        img.paste(row, (0, y))
+    # Bokeh: blurred discs, denser and brighter near the top.
+    bokeh = canvas(W, H)
+    bd = ImageDraw.Draw(bokeh)
+    rnd = random.Random(1718)
+    orbs = []
+    for _ in range(26):
+        y = rnd.betavariate(1.1, 3.2) * 640
+        orbs.append((rnd.uniform(0, W), y, rnd.uniform(4, 15)))
+    for x, y, r in orbs:
+        fade = max(0.25, 1 - y / 640)
+        col = rnd.choice([(255, 196, 110), (255, 150, 80), (255, 222, 160)])
+        a = int(rnd.randint(22, 46) * fade)
+        rr = r * SS
+        wrapped(lambda px_, py_: (bd.ellipse([px_ - rr, py_ - rr, px_ + rr, py_ + rr], fill=col + (a,)),
+                                  bd.ellipse([px_ - rr * 0.82, py_ - rr * 0.82, px_ + rr * 0.82, py_ + rr * 0.82],
+                                             fill=col + (int(a * 0.7),))),
+                W * SS, H * SS, x * SS, y * SS)
+    bokeh = bokeh.filter(ImageFilter.GaussianBlur(1.4 * SS))
+    img = Image.alpha_composite(img, bokeh)
+    # Drifting leaves: warm, faint, scattered over the whole height.
+    for lx, ly, ls, la in ((64, 120, 11, 40), (318, 84, 8, -25), (372, 300, 10, 70), (140, 420, 7, 10),
+                           (250, 560, 9, -55), (40, 700, 8, 30), (300, 860, 10, 15), (180, 1040, 8, -40)):
+        lf = leaf(ls * SS, la, (232, 112, 60, 46))
+        for dx in (-W, 0, W):
+            img.alpha_composite(lf, (int((lx + dx) * SS - lf.size[0] / 2), int(ly * SS - lf.size[1] / 2)))
+    finish(img.crop((0, 0, W * SS, H * SS)), path)
+
+
+def sunset_trim(path):
+    # Power lines against the last of the light: a thin bright band at the
+    # very top, two sagging wires and one small bird. One tile spans the
+    # widest card (Calendar), so the bird shows at most twice.
+    # H must match CardTrimH.
+    W, H = 420, 16
+    img = canvas(W, H)
+    d = ImageDraw.Draw(img)
+    for y in range(H * SS):
+        u = y / (H * SS)
+        a = int(120 * (1 - u) ** 1.6)
+        d.line([(0, y), (W * SS, y)], fill=(255, 196, 120, a))
+    wire = (26, 10, 12, 210)
+    sag = []
+    for top, depth, wid in ((4.2, 4.6, 1.0), (7.0, 6.0, 0.8)):
+        pts = [(x * SS, (top + depth * math.sin(math.pi * x / W)) * SS) for x in range(0, W + 1, 4)]
+        d.line(pts, fill=wire, width=max(1, int(wid * SS)), joint='curve')
+        sag.append((top, depth))
+    # Warm rim light along the upper wire.
+    top, depth = sag[0]
+    rim = [(x * SS, (top + depth * math.sin(math.pi * x / W) - 0.7) * SS) for x in range(0, W + 1, 4)]
+    d.line(rim, fill=(255, 200, 130, 90), width=max(1, int(0.5 * SS)), joint='curve')
+    # Bird perched on the upper wire.
+    bx = 300
+    by = top + depth * math.sin(math.pi * bx / W)
+    s = SS
+    d.ellipse([(bx - 3.2) * s, (by - 4.4) * s, (bx + 1.8) * s, (by - 0.4) * s], fill=wire)
+    d.ellipse([(bx + 0.6) * s, (by - 6.4) * s, (bx + 3.6) * s, (by - 3.4) * s], fill=wire)
+    d.polygon([((bx + 3.4) * s, (by - 5.2) * s), ((bx + 5.0) * s, (by - 4.7) * s), ((bx + 3.4) * s, (by - 4.2) * s)],
+              fill=wire)
+    d.polygon([((bx - 2.6) * s, (by - 2.6) * s), ((bx - 6.4) * s, (by - 0.8) * s), ((bx - 2.4) * s, (by - 1.0) * s)],
+              fill=wire)
+    finish(img, path)
+
+
 if __name__ == '__main__':
     christmas_texture(os.path.join(ROOT, 'Christmas', 'Texture.png'))
     christmas_trim(os.path.join(ROOT, 'Christmas', 'Trim.png'))
     cafe_texture(os.path.join(ROOT, 'Cafe', 'Texture.png'))
     cafe_trim(os.path.join(ROOT, 'Cafe', 'Trim.png'))
+    sunset_texture(os.path.join(ROOT, 'Sunset', 'Texture.png'))
+    sunset_trim(os.path.join(ROOT, 'Sunset', 'Trim.png'))

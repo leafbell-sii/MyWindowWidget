@@ -178,8 +178,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\Documents\
 **Clock** 카드 오른쪽 위의 **설정** 버튼을 누르면 카드가 설정 화면으로 바뀝니다. 아래 항목을 클릭으로 바꿀 수 있고, 모든 MyWindowWidget 위젯에 바로 반영됩니다. 오른쪽 위 **✕**를 누르면 시계로 돌아갑니다.
 설정 화면은 아래 카드를 덮기 때문에, 열려 있는 동안은 **항상 위**(Topmost)로 표시되고 닫으면 원래대로 돌아갑니다.
 
-- **Theme**: Brown / Slate / Forest / Mono / Christmas / Cafe
-  - **Christmas**, **Cafe**는 색뿐 아니라 폰트와 카드 배경 그림까지 바꾸는 컨셉 테마입니다(아래 "컨셉 테마").
+- **Theme**: Brown / Slate / Forest / Mono / Christmas / Cafe / Sunset
+  - **Christmas**, **Cafe**, **Sunset**은 색뿐 아니라 폰트와 카드 배경 그림까지 바꾸는 컨셉 테마입니다(아래 "컨셉 테마").
 - **Opacity**: 카드 불투명도 70% / 85% / 100%
 - **24-hour clock**: 24시간제 켜기·끄기
 - **Show seconds**: 초 표시 켜기·끄기
@@ -243,6 +243,7 @@ ColorCal1=214,154,96,255
 |---|---|---|---|
 | Christmas | Emilys Candy | Jua (한글 지원) | 짙은 초록 + 은은한 눈송이, 위쪽에 꼬마전구 줄 |
 | Cafe | Gaegu Bold | Gaegu (한글 지원, 손글씨) | 라떼색 종이 결 + 커피잔 자국·원두, 위쪽에 줄무늬 차양 |
+| Sunset | Gowun Batang Bold (라틴 글자만) | Gowun Dodum (한글 지원) | 노을빛 적갈색 + 위에서 번지는 햇빛·보케·떨어지는 잎, 위쪽에 전깃줄과 새 |
 
 ```ini
 ; 폰트: @Resources\Fonts 안의 .ttf/.otf는 자동으로 로드됩니다. 파일 이름이 아닌 글꼴 이름을 씁니다.

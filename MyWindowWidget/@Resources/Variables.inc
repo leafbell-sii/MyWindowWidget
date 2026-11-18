@@ -12,7 +12,7 @@
 ; Name of a file in @Resources\Themes\ (without .inc).
 Theme=Cafe
 ; Themes offered in the settings (max 8), separated by |.
-ThemeList=Brown|Slate|Forest|Mono|Christmas|Cafe
+ThemeList=Brown|Slate|Forest|Mono|Christmas|Cafe|Sunset
 ; Card opacity 0-255 (178 = 70%, 217 = 85%, 255 = 100%).
 BgAlpha=255
 ; Opacity while the mouse is over a card.

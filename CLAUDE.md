@@ -28,9 +28,9 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
     Variables.inc            공용 설정. Theme/BgAlpha/Use24h 등. Clock의 설정 화면이 여기에 씀
     Styles.inc               공용 MeterStyle (StyleCard, StyleTitle, StyleValue ...)
     Themes/*.inc             테마 (ColorBgRGB + 나머지 R,G,B,A). ThemeList에 등록
-                             Christmas/Cafe는 폰트·카드 그림까지 정하는 컨셉 테마
+                             Christmas/Cafe/Sunset은 폰트·카드 그림까지 정하는 컨셉 테마
     CardArt.inc              카드 그림 미터 (각 스킨 [MeterBg]에서 @Include)
-    Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy) + *-OFL.txt
+    Fonts/                   번들 폰트 (Jua, Gaegu, Emilys Candy, Gowun Dodum, Gowun Batang) + *-OFL.txt
     Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
     Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasks.*, weather.txt,
@@ -153,6 +153,9 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
   - 데스크톱 Spotify를 별도 설정 없이 인식합니다.
 - **컨셉 테마 폰트**: 한글 일정 제목이 많아 본문 폰트는 한글 지원 폰트로 골랐습니다(Christmas: Jua, Cafe: Gaegu). Christmas 숫자 폰트는 처음 Mountains of Christmas였으나 0이 작게 떠서("150"이 "15°"처럼 보임) Emilys Candy로 바꿨습니다.
   - Gaegu는 작게 그려지지만 폭이 넓어 `FontScale=1.15`가 고정 폭 카드에 들어가는 한계입니다.
+- **Sunset 테마 (2026-11-18, 사용자 배경화면에 맞춤)**: 역광 노을 사진에 맞춰 실루엣 같은 적갈색 카드 + 크림색 글자 + 앰버 강조색. 그림은 위에서 번지는 햇빛(세로 그라디언트, 텍스처 타일 높이 1200이라 아래로 반복되지 않음)·보케·잎, 띠는 전깃줄 두 줄과 새 한 마리(타일 폭 420 = 가장 넓은 카드).
+  - 숫자 폰트 Gowun Batang Bold는 원본이 8 MB라 `pyftsubset`으로 라틴·문장부호·°만 남겼습니다(35 KB). OFL에 Reserved Font Name이 없어 이름을 그대로 둡니다. `FontFaceNum`(StyleValue)에 한글이 들어가면 대체 폰트로 그려지니 주의합니다.
+  - 본문 Gowun Dodum(7 MB)은 한글 일정 제목 때문에 전체를 넣었습니다. 웨이트가 하나라 `FontWeightTitle=400`.
 - **곡 제목**은 marquee 대신 말줄임(…)으로 처리합니다(CPU 목표).
 - **진행 바**는 클릭으로만 탐색합니다. Rainmeter에 마우스 이동 이벤트가 없습니다.
 - **네트워크 "Today"**는 `Cumulative=1` 대신 Lua로 직접 합산합니다. 어댑터가 바뀌어도 값이 튀지 않습니다.
