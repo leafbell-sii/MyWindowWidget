@@ -47,6 +47,11 @@ FontAscent=1.439
 FontCapTopNum=0.505
 FontAscentNum=1.439
 FontDescentNum=0.335
+; Height of a text box in px per pt, used for fixed rows (Clock,
+; Music). Segoe UI's 1.78 is kept for every theme on purpose: Hangul
+; and kana fall back to Windows fonts, which are taller than the
+; bundled theme fonts.
+FontLineH=1.78
 ; Card art (see @Resources\CardArt.inc). Empty = plain card.
 ;   CardTexture - seamless tile over the whole card
 ;   CardTrim    - tile repeated along the top edge, CardTrimH px tall
@@ -93,6 +98,12 @@ Gap=(8*#Scale#)
 WidgetWidth=(260*#Scale#)
 ; Clock card (time + weather; its settings view uses it too)
 ClockWidth=(380*#Scale#)
+; Clock card height (clock view), also used by the collapsed Music
+; card so both are the same height. It is the Clock layout written
+; out (see Clock.ini [Variables]): the larger of the time's and the
+; weather's baselines, plus the descent and Pad. Change it together
+; with that layout.
+ClockHeight=(Max(#Pad#+(#FontAscentNum#-#FontCapTopNum#+0.205)*#FontSizeXL#,#Pad#+#FontLineH#*#FontSizeS#/2+10*#Scale#+1.75*#Gap#+(#FontAscentNum#-#FontCapTopNum#)*#FontSizeL#+(#FontAscent#-#FontCapTop#)*#FontSizeS#)+0.205*#FontSizeXL#+#Pad#)
 ; Short cards (System, Network): four of them plus three Gaps
 ; are about as tall as the Calendar (CalendarScale 1.5).
 CompactWidth=(300*#Scale#)
@@ -102,13 +113,17 @@ BarH=(4*#Scale#)
 ; Shape-drawn icons
 ArrowS=(11*#Scale#)
 ArrowStrokeW=(1.6*#Scale#)
-; Music card
+; Music card. Clock + Music are as wide as Tasks + Calendar.
+; Collapsed it is as tall as the Clock card (ClockHeight) and its
+; cover fills that height; expanded it uses ArtSizeL and the
+; larger play button.
 MusicWidth=(340*#Scale#)
-ArtSize=(64*#Scale#)
+ArtSizeL=(128*#Scale#)
 ArtRadius=(8*#Scale#)
 IconSize=(14*#Scale#)
 IconStrokeW=(1.5*#Scale#)
 PlayButtonSize=(30*#Scale#)
+PlayButtonSizeL=(42*#Scale#)
 ; Calendar card
 CalendarWidth=(280*#Scale#)
 ; Calendar card height in pixels, also used by the Tasks card so

@@ -8,7 +8,8 @@
 --              container MeterSetView)
 --  Switching sets CardH (CardHClock / CardHSet) and shows one
 --  group. In the clock view the AM/PM and seconds meters follow
---  Use24h / ShowSeconds.
+--  Use24h / ShowSeconds. While the settings view is open the card
+--  is Topmost (ZOrder.lua), so it stays above the cards below it.
 --
 --  A settings change is written to @Resources\Variables.inc and
 --  refreshes every MyWindowWidget skin. Before that, the file
@@ -32,6 +33,7 @@ local themes = {}
 local c = {}       -- colours
 local g = {}       -- geometry
 local view = 'clock'
+local ZOrder
 
 local function var(name, default) return SKIN:GetVariable(name, default or '') end
 local function num(name)
@@ -126,6 +128,8 @@ end
 local function applyView()
   local settings = view == 'settings'
   SKIN:Bang('!SetVariable', 'CardH', tostring(settings and g.cardHSet or g.cardHClock))
+  -- The settings view is taller and may cover the card below it.
+  if settings then ZOrder.Raise('clock') else ZOrder.Restore('clock') end
   if settings then
     SKIN:Bang('!HideMeterGroup', 'ClockView')
     SKIN:Bang('!ShowMeter', 'MeterSetView')
@@ -162,6 +166,7 @@ local function applyAll()
 end
 
 function Initialize()
+  ZOrder = dofile(var('@') .. 'Scripts\\ZOrder.lua')
   c.text = var('ColorTextPrimary')
   c.secondary = var('ColorTextSecondary')
   c.accent = var('ColorAccent')

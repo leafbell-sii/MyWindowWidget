@@ -9,7 +9,9 @@ Rainmeter 위젯 모음 **MyWindowWidget**의 저장소입니다. 원래 명세(
 - **디자인 값 하드코딩 금지.**
   - 색은 `@Resources/Themes/*.inc`, 크기·간격·폰트·동작 설정은 `@Resources/Variables.inc`에서만 가져옵니다.
   - 크기는 `(N*#Scale#)` 형태로 씁니다.
-- **외부 플러그인은 WebNowPlaying 하나만** 씁니다. 나머지는 내장 measure/plugin으로 구현합니다.
+- **외부 플러그인은 지금 WebNowPlaying 하나만** 씁니다. 나머지는 내장 measure/plugin(+Lua, RunCommand로 PowerShell)으로 구현합니다.
+  - 공식 문서·소스 검색을 포함한 빠른 방법이 모두 실패했을 때만, **사용자에게 그 외부 플러그인을 써도 되는지 먼저 물어봅니다.**
+  - 허락을 받았더라도 **사용하기 직전에 반드시 백신 검사**(예: Microsoft Defender `MpCmdRun.exe -Scan -ScanType 3 -File <경로>`)와 출처·해시 확인을 합니다. 결과는 `vendor/<플러그인>/SOURCE.md`에 남깁니다.
 - 플러그인·API 옵션은 학습 지식에 기대지 말고 공식 문서나 소스로 확인합니다. 확인하지 못한 부분은 `TODO(verify)`로 남깁니다.
 - **변경 후에는 반드시 확인합니다.**
   - Rainmeter 로그에 `MyWindowWidget\...` 오류·경고가 없어야 합니다.
@@ -32,9 +34,9 @@ MyWindowWidget/              스킨 루트 (= Rainmeter config 루트, 패키지
     Images/<테마>/           Texture.png, Trim.png (make-concept-art.py로 생성)
     Secrets.inc              실제 iCal 주소 (git 제외) / Secrets.example.inc 템플릿
     Cache/                   런타임 캐시 (calN.ics, NetToday.txt, tasks.*, weather.txt,
-                             gpu.txt/gpu.alive, clock.view) - git 제외
-    Scripts/                 Lua: Calendar, ICalParser, Music, Network, Settings(Clock 화면 전환+설정),
-                             Weather, System(GPU 값+드라이브 줄), Tasks
+                             gpu.txt/gpu.alive, clock.view, music.view, *.zpos) - git 제외
+    Scripts/                 Lua: Calendar, ICalParser, Music(접기/펼치기), Network, Settings(Clock 화면 전환+설정),
+                             Weather, System(GPU 값+드라이브 줄), Tasks, ZOrder(펼친 카드 Topmost)
                              PowerShell(RunCommand로 실행): GTasks.ps1 (Google Tasks OAuth/API),
                              Weather.ps1 (위치·지명·날씨), GpuLoad.ps1 (GPU 사용률 상주 샘플러)
   Clock/ System/ Network/ Music/ Calendar/ Tasks/   스킨 (.ini 하나씩)
@@ -100,6 +102,13 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **`!WriteKeyValue`는 없는 파일을 만들지 못합니다.**
 - **`!DeactivateConfig`·`!Refresh`·`!Move`·`!CommandMeasure`를 로드되지 않은 스킨에 쓰면 로그에 오류나 경고가 남습니다.**
   - 그래서 스킨끼리 서로를 켜고 끄는 설계는 피했습니다.
+- **Hidden 미터의 `[Meter:H]`는 0입니다.** 그래서 `[숨길 수 있는 미터:YH]`에 기대는 CardH는 그 미터가 보일 때 커집니다.
+  - 옛 Music 카드가 곡이 잡히면 커지던 원인(2026-11-17): 대기 상태에서 숨긴 시간 줄(`MeterTimes`)이 보이면서 +17px, 일본어·한글 제목이 대체 폰트로 그려지며 줄 높이 +4px.
+  - 그래서 Music은 모든 위치를 변수로 계산하고(R/YH 상대 위치 없음), 화면별 컨테이너에 넣었습니다. 높이가 내용에 따라 변하면 안 되는 카드는 이렇게 합니다.
+- **`!ZPos`는 Rainmeter.ini(`AlwaysOnTop`)에 저장됩니다**(2026-11-17 확인). 잠깐 올렸다 내리려면 원래 값을 따로 기억해야 합니다(ZOrder.lua는 `Cache\<이름>.zpos`).
+  - 모든 스킨이 `0`(보통)이면 `!ZPos 0`을 다시 줘도 앞으로 오지 않습니다(`HWND_NOTOPMOST`는 이미 보통 창이면 효과 없음). 그래서 펼친 카드는 `1`(Topmost)로 올립니다.
+  - bang은 비동기라서, `!ZPos` 직후 Rainmeter.ini를 바로 읽으면 이전 값이 나올 수 있습니다(screenshot-skins.ps1을 연달아 돌리다 Calendar·Tasks가 `2`로 남은 적 있음 → 스크립트 끝에 2초 대기).
+- **Music을 `!Refresh`하다 WebNowPlaying.DLL에서 Rainmeter가 죽은 적이 있습니다**(2026-11-17, 0xc0000409, 같은 세션에서 여러 번 새로고침한 뒤). 접기/펼치기는 새로고침 없이 Lua로만 합니다.
 - **AudioLevel 자식 measure는 부모 measure보다 뒤에 와야 합니다.** `@Include` 위치에 주의합니다.
 - **Lua 인코딩**: 기본은 ANSI(CP949)라서 이모지나 일부 문자가 깨집니다.
   - 스크립트 파일이 **UTF-16 LE(BOM)**이면 유니코드(UTF-8) 모드로 실행됩니다.
@@ -173,6 +182,13 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
 - **System**: CPU·GPU 그래프 2줄, RAM, 드라이브 줄(`SystemDrives`, 최대 4, 없는 드라이브는 숨기고 30초마다 다시 확인). 카드 높이는 내용에 맞춰 바뀝니다(이전처럼 Calendar 높이에 맞춘 고정값이 아님).
   - 이 PC의 G:는 Google Drive 가상 드라이브라 기본값에 넣지 않았습니다.
 - **Tasks 동기화 표시**: 헤더 오른쪽에 동기화 버튼(⟳)과 `Updated 5m ago`(1초마다 갱신, 글자가 바뀔 때만 다시 그림). 시각은 tasks.txt의 `updated` 줄(초까지)입니다.
+- **Music 접기/펼치기 (2026-11-17, 사용자 요청)**: config 하나, 오른쪽 위 chevron으로 전환(Music.lua, 상태는 `Cache\music.view`).
+  - 접힘: 높이 = Clock 카드(`ClockHeight`, Clock.ini의 CardHClock을 식으로 풀어 Variables.inc에 둠. Clock 레이아웃을 바꾸면 같이 바꿉니다). 커버가 높이를 채우고, 제목·아티스트, 이전/재생/다음, 진행 바.
+  - 펼침: 큰 커버(`ArtSizeL`), 제목/아티스트/앨범/시간, 전체 폭 진행 바, 셔플/이전/재생/다음/반복.
+  - 폭은 둘 다 `MusicWidth`(340)입니다. Clock(380)+Music(340) = Tasks(300)+Calendar(420)이라 이 PC 배치에서 Clock 옆에 두면 오른쪽 끝이 Calendar와 맞습니다.
+  - 상태에 따른 표시(커버, 재생/일시정지 아이콘, 진행 바, 반복 1)는 IfAction이 아니라 Lua가 화면을 보고 정합니다. 화면 그룹을 보이면 둘 다 보이는 문제를 피하려는 것입니다.
+- **펼친 카드는 Topmost**: Music 펼침과 Clock 설정 화면은 아래 카드를 덮으므로 열려 있는 동안 `!ZPos 1`, 닫으면 사용자의 원래 값으로 되돌립니다(ZOrder.lua). 원래 값이 이미 1 이상이면 건드리지 않습니다.
+  - 그동안은 다른 앱 창 위에도 뜹니다. 위젯끼리만 올리는 방법은 외부 플러그인 없이는 찾지 못했습니다.
 - **라이선스**: MIT (© 2026 leafbell-sii). WebNowPlaying(MIT) 고지는 패키지에 함께 넣습니다.
 
 ## 남은 일 / 아이디어
@@ -187,6 +203,7 @@ tools/dev/                   read-rainmeter-log.ps1, screenshot-skins.ps1,
   - 실제 계정으로 확인한 것(2026-11-17): setup, 조회(목록 2개), bang 경로로 한글·따옴표 제목 추가 → 완료, 목록 전환. 로그 오류 없음.
   - 키 입력을 흉내 내는 테스트(SendKeys)는 쓰지 않습니다. 포커스가 다른 창에 있으면 사용자 창에 입력됩니다.
 - **Music 미검증 항목**: 재생 중일 때 일시정지 아이콘 전환과 진행 바 클릭 탐색은 아직 확인하지 못했습니다(일시정지 상태 표시는 확인함).
+  - 접기/펼치기(2026-11-17)는 bang(`Toggle()`)으로만 눌러 봤습니다. Cafe 테마에서만 화면을 봤고, 실제 "Nothing playing" 상태는 Spotify를 끄지 않고 텍스트·미터를 bang으로 바꿔 크기만 확인했습니다.
 - **Calendar 미지원 반복 규칙**: `MONTHLY`/`YEARLY` + `BYDAY`("둘째 화요일"), `BYMONTHDAY`, `RDATE`는 첫 회차만 표시합니다.
 - **Calendar 시간대**: Asia/Seoul이 아닌 TZID는 로컬 시간으로 취급합니다(VTIMEZONE 미해석).
 - 명세의 선택 범위 밖이었던 것: GPU 온도, Clock 보조 타임존. (Disk·Weather·GPU 사용률은 2026-11-17에 추가)
